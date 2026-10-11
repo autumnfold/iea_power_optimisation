@@ -1,6 +1,9 @@
-import pytest
 import copy
+
+import pytest
+
 from src.dispatch import solve_dispatch
+
 
 @pytest.fixture
 def base_generators():
