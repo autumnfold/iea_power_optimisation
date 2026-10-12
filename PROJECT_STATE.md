@@ -168,3 +168,6 @@ Counterfactual merit-order studies and Shapley decompositions in energy each exi
 - 2026-09-29: initial version.
 - 2026-09-29: repo skeleton and CI recorded; 3-generator result recorded; `dsh` status and agent-decision deferral added; open deliverables with due dates added; unverified items extended.
 - 2026-09-29 23:15: repo connected to the Project and reviewed; `.gitignore` and visibility items resolved; Jan 18 public-repo gate with checklist added; repo-hygiene standards added; Thu Oct 1 checkpoint added; session protocol updated for the single-thread Project.
+
+## Open Decisions
+- **Degenerate Hours:** LP solvers return an arbitrary shadow price within $[\partial^-C, \partial^+C]$ during degenerate intervals. We will implement a rule to report both one-sided derivatives by re-solving at $D \pm \varepsilon$.

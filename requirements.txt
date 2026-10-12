@@ -1,8 +1,4 @@
-pyomo
-highspy
-pandas
-numpy
-matplotlib
-scipy
-pytest
-ruff
+pyomo==6.8.0
+highspy==1.7.2
+pytest==9.1.1
+ruff==0.1.6

@@ -1,16 +1,12 @@
 import pyomo.environ as pyo
 
-
 def solve_dispatch(generators, demand):
     """
     Solves the economic dispatch problem.
     
-    Dual Extraction Convention (∂C/∂b):
-    - Balance (sum(g) == D): returned as lambda (positive, as higher demand increases cost).
-    - Max capacity (g <= G): expanding the bound relaxes the problem, decreasing cost. 
-      The raw dual is negative, so we explicitly invert it to match the KKT mu_max >= 0 convention.
-    - Min capacity (-g <= 0): expanding the RHS relaxes the lower bound constraint. 
-      The raw dual is negative, so we invert it for mu_min >= 0.
+    Dual Extraction Convention:
+    - Balance (sum(g) == D): returned as lambda (∂C/∂D).
+    - Capacity limits: We map the raw duals (∂C/∂b) to KKT multipliers via μ = -∂C/∂b.
     """
     model = pyo.ConcreteModel()
     model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
@@ -33,10 +29,12 @@ def solve_dispatch(generators, demand):
         return -model.dispatch[g] <= 0
     model.min_cap = pyo.Constraint(model.G, rule=min_cap_rule)
     
-    results = pyo.SolverFactory('appsi_highs').solve(model)
+    results = pyo.SolverFactory('appsi_highs').solve(model, load_solutions=False)
     
     if results.solver.termination_condition != pyo.TerminationCondition.optimal:
         raise RuntimeError(f"Solver failed to find optimal solution. Status: {results.solver.termination_condition}")
+    
+    model.solutions.load_from(results)
     
     return {
         "total_cost": pyo.value(model.cost),
