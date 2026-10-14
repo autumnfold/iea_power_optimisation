@@ -4,6 +4,14 @@
     "deny": [
       "Bash(git push *)",
       "Bash(git commit *)",
+      "Bash(git merge *)",
+      "Bash(git rebase *)",
+      "Bash(git reset *)",
+      "Bash(git revert *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git tag *)",
+      "Bash(git branch -D *)",
+      "Bash(git branch -d *)",
       "Read(./.env)"
     ]
   }
