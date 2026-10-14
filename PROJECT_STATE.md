@@ -1,7 +1,8 @@
 # PROJECT_STATE.md
 
-> Single source of truth for the IEA internship project. Last updated: 2026-09-29 23:15 (Week 1: repo skeleton + CI green; repo connected to the Claude Project; 3-generator problem solved by hand; KKT write-up not yet started).
-> **Claude: read this file completely before answering anything. Update it at the end of every session (see "Session protocol").**
+> Canonical source of truth for project status, decisions, open questions, and change history. Last reconciled: 2026-10-14.
+> Evidence labels matter: distinguish local verification, Git history, reports from Browser Claude, and unresolved claims.
+> **Working protocol:** follow the role-specific instructions in Section 12 before starting work.
 
 ---
 
@@ -9,20 +10,20 @@
 
 Land a summer internship at the **International Energy Agency (IEA, Paris)** next summer (summer 2027), by producing a serious, rigorous, competitive, public project that shows quantitative modelling skill and clear writing.
 
-**Application facts (IEA official internship page, checked 2026-09-29):**
-- Must be enrolled full-time in a degree programme in a field related to the IEA's work, for the whole internship.
+**Application facts (IEA official internship page, checked 2026-09-29 according to the recorded search; re-check before applying):**
+- Be enrolled in a full-time degree programme for the duration of the internship in a field or discipline related to the work of the IEA.
 - Excellent command of English and/or French; strong drafting and communication skills; minimum internship length one month.
 - Applications are year-round via the OECD internship platform. Apply at least 3 months before the desired start date. Select IEA as one of the 3 areas of interest. The "Message to hiring manager" field works as the cover letter: state interest in the IEA, the type of role and the area of work.
-- Some individual IEA postings have required Master's/PhD enrolment. **Check the level requirement of every posting before applying.**
-- **Target: application submitted by ~Feb 1, 2027. Hard deadline: Feb 15, 2027.**
+- At least one individual IEA posting (third-party posting dated 2023, reported by Browser Claude on 2026-10-14) required Master's/PhD enrolment. Do not generalise this to every internship: **check the education-level requirement of every posting before applying.**
+- **Target: application submitted by ~Feb 1, 2027. Hard planning deadline: Feb 15, 2027.**
 - To do: ask the Paris-Saclay department about the *convention de stage* process.
 
 ## 2. Owner profile
 
 - L2 Mathematics, Université Paris-Saclay (France).
 - Very good in Python; comfortable in C++; learning LaTeX; loves math and CS.
-- Environment: Windows + WSL Ubuntu, VS Code, GitHub account (knows Git), LM Studio with DeepSeek R1 and Qwen Coder, a recent DeepSeek Harness (`dsh`).
-- Not yet experienced with professional project tooling (CI, repo structure, agent workflows). Wants to become as professional as possible.
+- Environment: Windows + WSL Ubuntu, VS Code, GitHub account (knows Git), LM Studio with DeepSeek R1 and Qwen Coder. A recent DeepSeek Harness (`dsh`) is available but currently unused; whether to drop it is undecided.
+- Still building experience with professional project tooling (CI, repo structure, agent workflows). Wants to become as professional as possible.
 - **Working style:** wants demanding, direct coaching. Do not go easy. Strong pushes, hard gates, blunt critique.
 
 ## 3. The project
@@ -31,27 +32,28 @@ Land a summer internship at the **International Energy Agency (IEA, Paris)** nex
 
 **Origin:** a merge of two candidate projects (LMDI decomposition + weather normalisation, and a power-system optimisation roadmap: dispatch → unit commitment → capacity expansion). Owner chose the hybrid.
 
-### Method (as proposed, to be refined)
+### Method (proposed; refine after literature and data checks)
 1. **Dispatch model:** hourly LP, one full year (8,760 h), French fleet, hydro energy budgets, pumped storage, interconnection.
 2. **Drivers (~6):** weather-normalised demand; weather effect on demand (piecewise-linear degree-day regression, change-point base temperature, Newey–West errors); wind/solar availability; nuclear availability; hydro inflows; fuel and carbon prices.
 3. **Attribution:** for a pair of years (e.g. 2019 vs 2022), evaluate all driver coalitions (2^6 = 64 LP runs per pair) and compute exact **Shapley attributions** of the change in system cost.
 4. **Model-free benchmark:** LMDI decomposition of observed data for the same years. Compare accounting vs counterfactual answers and explain disagreements.
 5. **Uncertainty:** block bootstrap on the weather regression + perturbation of cost assumptions, giving confidence intervals on each driver's share. Report whether the driver ranking is robust.
-6. **Stretch (only if ahead):** small clustered-unit MILP for one week, compare attribution under LP vs MILP (value function no longer convex, so dual-based attribution breaks down: explain why).
+6. **Stretch (only if ahead):** small clustered-unit MILP for one week, compare attribution under LP vs MILP. The LP value function has convexity properties useful for dual analysis; the MILP value function need not be convex, so dual-based attribution does not transfer directly.
 
-### Mathematical core to be written and proven
-- LP value function is convex piecewise linear in the RHS; its derivative is the dual variable (envelope theorem). Availability drivers enter via capacity constraints (duals = scarcity rents).
+### Mathematical core to be written and proven by the owner
+- For the LP, the optimal-cost value function is convex and piecewise linear in relevant right-hand-side parameters. An optimal dual vector gives a subgradient under the chosen sign convention; it equals a unique derivative only where the value function is differentiable (for example, away from a kink).
+- With the model's balance convention, `lambda` is the demand-cost marginal value when the value function is differentiable. For capacity bounds, `mu_max` and `mu_min` are KKT multipliers obtained by negating the raw solver duals. A capacity multiplier describes the local value of relaxing a bound; interpret it with the sign convention and active constraints stated.
 - Degeneracy: non-unique duals at merit-order kinks; what the solver returns; how it is handled.
-- Shapley axioms (efficiency, symmetry, dummy player, additivity); attributions sum exactly to the cost change.
-- Path dependence: compare Shapley vs first-order dual attribution Σλ·Δb vs sequential attribution; quantify spread over driver orderings.
-- Known traps: cost attribution is clean (cost is the LP objective); **emissions attribution is not** (optimal dispatch can be non-unique), so an explicit tie-break rule (e.g. secondary emissions minimisation) is needed.
+- Shapley axioms (efficiency, symmetry, dummy player, additivity); attributions sum exactly to the cost change. The owner must explain why these axioms and this allocation rule suit the project's cost-attribution question.
+- **Order dependence:** compare Shapley attribution with first-order dual attribution `Σ λ·Δb` and sequential attribution; quantify variation over driver orderings. For a convex value function, a subgradient at `b` satisfies `V(b + Δb) >= V(b) + λᵀΔb` when the same value-function and sign conventions apply.
+- Known traps: cost attribution is clean when cost is the LP objective; **emissions attribution is not** (optimal dispatch can be non-unique), so an explicit tie-break rule (e.g. secondary emissions minimisation) is needed.
 
 ### Validation
 - Pre-register metrics *before* running: price-duration-curve distance, rank correlation of model dual price vs actual day-ahead price.
-- The single-hour dual will not match real prices (interconnection, hydro water values, must-run, bidding). Present divergences as analysis, not failure.
+- The single-hour dual will not match real prices exactly (interconnection, hydro water values, must-run, bidding). Present divergences as analysis, not failure.
 
 ### Novelty statement (NOT yet verified)
-Counterfactual merit-order studies and Shapley decompositions in energy each exist separately. Whether this exact combination is unpublished is **unknown**. The claimed contribution is: exact, axiomatic attribution on an LP-based dispatch model, with quantified path dependence and a bootstrap uncertainty layer. Literature search in weeks 1–2 must confirm or shrink this claim. Never overclaim in the application.
+Counterfactual merit-order studies and Shapley decompositions in energy each exist separately. Whether this exact combination is unpublished is **unknown**. The claimed contribution is: exact, axiomatic attribution on an LP-based dispatch model, with quantified order dependence and a bootstrap uncertainty layer. Literature search and a defensible contribution statement are due **Oct 22**. Never overclaim in the application.
 
 ## 4. Data sources (verify licence terms for each)
 - RTE éCO2mix open data (opendata.reseaux-energies.fr): generation by source, demand, exchanges. *Granularity and year coverage to be checked by the owner.*
@@ -63,55 +65,78 @@ Counterfactual merit-order studies and Shapley decompositions in energy each exi
 
 ## 5. Decisions
 
-| # | Decision | Status |
+| # | Decision | Status / evidence |
 |---|---|---|
-| D1 | Hybrid project (dispatch + attribution + LMDI benchmark) | **Decided** |
-| D2 | Unit commitment (MILP) is a stretch, not core | Decided (as proposed) |
-| D3 | Minimal AI tooling: one terminal coding agent, this chat as design reviewer/red team, local models as junior helpers; no multi-agent orchestration | Decided (as proposed) |
-| D4 | Agents work on branches only; owner reviews diffs; nothing pushes to `main` | Decided (as proposed) |
-| D5 | Owner derives by hand first; tests are written from the math before code | Decided (as proposed) |
+| D1 | Hybrid project: dispatch, attribution, and LMDI benchmark | Decided by owner |
+| D2 | Unit commitment (MILP) is a stretch, not core | Decided by owner |
+| D3 | Minimal AI tooling: one terminal coding agent, chat as reviewer/red team, local models as junior helpers; no multi-agent orchestration | Decided by owner |
+| D4 | Agents work on feature branches; owner performs all Git writes | Decided by owner |
+| D5 | Owner derives mathematics by hand first; AI may explain, hint, check reasoning, and locate errors, but must not write report derivations/proofs | Decided by owner |
+| D6 | Interconnection: fixed net exchanges (option A) initially; price-taking neighbours (B) remain a stretch | **Pending owner confirmation.** Browser Claude reportedly selected A during the Oct 11 schedule rebuild; that report is not owner confirmation. |
+| D7 | Claude Code is the primary implementation tool; local rules and deny patterns are being configured | Configuration edits exist in the current working tree. `dsh` is currently unused; dropping it is undecided. |
+| D8 | Degenerate hours: report one-sided demand-cost derivatives by re-solving at demand ± ε | Proposed by owner; confirm implementation when the hourly model exists |
+| D9 | Explicit nonnegativity constraints in the toy model so lower-bound multipliers are available for KKT tests | Implemented in the supplied `src/dispatch.py`; tests assert the lower-bound multiplier. Full-model relevance remains to be revisited. |
+| D10 | Role split: owner decides and performs Git writes; Claude Code implements/tests and maintains status; Browser Claude advises/reviews but does not edit the repository | Decided by owner, 2026-10-14 |
+| D11 | No separate `DECISIONS.md`; this file is the canonical status and decision record | Decided by owner |
 
-**Open decisions**
-- Which terminal coding agent: Claude Code (needs a Claude account; check pricing) vs DeepSeek Harness `dsh`. **Deferred until after the KKT deliverable.** Status of `dsh`: launched once via `npx @deepseek-ai/dsh web` (version `0.2.0-rc.2`, a release candidate); its local web UI opens, provider/model configuration not done. Unknown whether it can use an LM Studio local server. Pick **one**.
-- Which year pairs: proposed 2019→2022 and 2022→2024, not confirmed.
-- Final driver list (~6 proposed).
-- Interconnection modelling: (A) fixed net exchanges = simple, (B) price-taking neighbours with capacity limits = realistic but hard. Start with A; **gate around Nov 16**: if B isn't working, fall back to A and say so in the report.
-- ~~Repo name and URL~~ **Resolved:** https://github.com/jiuyueqiuu/iea_power_optimisation (local clone: `~/projects/iea_power_optimisation` in WSL). Private. Connected to the Claude Project "IEA Project" through the GitHub integration (branch `main`); Claude sees a synced snapshot, not the live repo.
+**Open decisions and questions**
+- Year pairs: 2019→2022 and 2022→2024 are proposed, not confirmed.
+- Final driver list: approximately six drivers are proposed; confirm the final list before implementation.
+- Fuel and carbon price data sources remain undecided.
+- November examination dates are needed to adjust the schedule.
+- Ask the Paris-Saclay department about the *convention de stage* process.
+- Check the enrolment-level requirement for every IEA posting before applying.
+- At the November 29 gate, review whether price-taking neighbours are feasible; otherwise retain fixed net exchanges and disclose the limitation.
+- `dsh`: decide whether to retain or remove it; do not silently treat it as dropped.
 
-## 6. Timeline (week 1 starts Tue 2026-09-29)
+Repository: `https://github.com/jiuyueqiuu/iea_power_optimisation` (remote URL confirmed locally). Local Git history contains the PR #2 and PR #3 merge commits. Repository visibility: **public, reported by owner on 2026-09-29**.
 
-| Weeks / dates | Deliverable | Gate |
+## 6. Timeline (reconciled 2026-10-14)
+
+| Dates | Deliverable | Gate |
 |---|---|---|
-| 1–2 (Sep 29–Oct 12) | Repo skeleton + green CI; hand derivation of 3-generator dual = marginal cost; solver check; literature search; contribution statement in 3 sentences | Cannot state the contribution in 3 sentences → stop and rescope |
-| 3–5 (Oct 13–Nov 2) | Single-period, then full-year dispatch, France 2019 | Validation metrics pre-registered before running |
-| 6–8 (Nov 3–Nov 23) | Hydro budgets, pumped storage, interconnection | **~Nov 16 interconnection gate** (see above) |
-| 9–11 (Nov 24–Dec 14) | Shapley engine with tests; LMDI benchmark | Tests: attributions sum exactly to ΔCost |
-| 12–14 (Dec 15–Jan 4) | Bootstrap, sensitivity, 2022 and 2024 results | Exams/holidays risk: plan for reduced capacity |
-| 15–17 (Jan 5–Jan 25) | Report (~15 pp, IEA register) + polished repo | **~Jan 18: full draft exists AND repo made public**, after this checklist: real README (question, method, one-command reproduction); `LICENSE`; full-history scan for secrets; author email check; licence check on any redistributed data; green CI |
-| 18 (Jan 26–Feb 1) | Submit applications | Hard deadline Feb 15 |
+| Sep 29–Oct 13 | Repository skeleton, CI workflow, three-generator dispatch/KKT implementation and tests | Browser Claude reports PR #2 and PR #3 merged; local Git history confirms the merge commits |
+| **Proposed: Oct 15** | Review branch-cleanup evidence; do not delete branches until the owner decides | Confirm whether any local branch is safe to delete; check remote-branch status without making changes |
+| By Thu Oct 22 | Literature search with at least 10 relevant sources; owner answers KKT questions 1–3 in their own words; redo the Probe A explanation; edit the write-up and place the `.tex` source in `report/`; write a three-sentence contribution statement | If the contribution cannot be defended, rescope before writing real-data code |
+| Oct 23–Nov 15 | Single-period model, then full-year French dispatch for 2019 | Pre-register validation metrics by Oct 28 |
+| Nov 16–29 | Hydro budgets, pumped storage, and interconnection modelling | Nov 29 gate: decide whether price-taking neighbours are feasible |
+| Nov 30–Dec 14 | Shapley engine with tests and LMDI benchmark | Attributions must sum to the modelled cost change |
+| Dec 15–Jan 4 | Bootstrap, sensitivity, and 2022/2024 analysis | Allow for exams and holidays |
+| Jan 5–18 | Approximately 15-page report and repository polish | Full draft by Jan 18; check README, licence, secret history, author email, data licences, and CI |
+| Jan 19–Feb 1 | Prepare and submit applications | Target Feb 1; hard planning deadline Feb 15 |
 
-**If a gate is missed: cut scope, not quality.** Cut order: MILP stretch → second year pair → (never) the report.
+The schedule and reported milestone completion above are based partly on a Browser Claude update provided by the owner on 2026-10-14. They are not independent evidence that every research deliverable is finished. October 15 remains a proposed date, not a confirmed commitment. November exams may overlap with the Nov 16–29 work; exact dates remain TBD.
+
+**If a gate is missed, cut scope rather than quality.** Cut order: MILP stretch, then second year pair; do not cut the report. Consider placing interconnection option B after the MILP stretch in the cut order, but the owner must confirm the scope order.
 
 ## 7. Repo standards
+
 - Work inside the WSL filesystem (`~/projects`), not `/mnt/c`.
-- Layout: `src/`, `tests/`, `notebooks/`, `report/` (LaTeX), `docs/`, `data/` (gitignored; fetch scripts only), `ASSUMPTIONS.md`, `DECISIONS.md`, `PROJECT_STATE.md`, agent instructions file (`AGENTS.md` or `CLAUDE.md`, check which file the chosen tool reads).
-- Python env pinned in `pyproject.toml`: pyomo, highspy, pandas, numpy, matplotlib, scipy, pytest, ruff.
-- GitHub: SSH auth from WSL, private repo initially, GitHub Actions CI running `ruff` and `pytest` on every push and PR.
-- One Issue per task, one branch per issue; merge only if tests pass **and** owner can explain the diff.
-- Commit several times a week; history is evidence of sustained work.
-- Before writing real model code: move to `pyproject.toml` and pin dependency versions (an unpinned pyomo/highspy update can silently change solver behaviour).
-- `PROJECT_STATE.md` is committed to the repo and kept identical to the copy Claude works from.
-- Never commit secrets, tokens or `.env`; deleting them later does not remove them from history. Keep the commit author email one you are happy to make public (GitHub noreply address if not).
-- Mandatory tests from week 1, including: "LP dual of the demand constraint equals the marginal unit's cost"; "Shapley attributions sum exactly to ΔCost".
+- Current tracked layout verified locally: `.claude/settings.json`, `.github/workflows/ci.yml`, `.gitignore`, `CLAUDE.md`, `PROJECT_STATE.md`, `pytest.ini`, `requirements.txt`, `src/`, and `tests/`.
+- `README.md`, `ASSUMPTIONS.md`, and `report/` are missing from the current local checkout. Create them when their purposes are reached. `DECISIONS.md` is intentionally not used.
+- `data/` must remain untracked and must never be modified by an agent without explicit owner direction.
+- Current dependency pins in `requirements.txt`: `pyomo==6.8.0`, `highspy==1.7.2`, `pytest==9.1.1`, `ruff==0.1.6`. The CI workflow installs this file, then runs `ruff check .` and `pytest` on Python 3.12.
+- Recorded local verification on 2026-10-14: Ruff 0.1.6 (the pinned CI version) passed; `.venv/bin/pytest` reported 8 passed; `git diff --check` passed. The locally installed Ruff 0.16.9 reports an import-formatting finding that does not reproduce under Ruff 0.1.6. Keep the version distinction explicit; do not claim that the two Ruff versions behave identically.
+- `.venv/` is not in the current `git ls-files` output; no tracked virtual environment was found.
+- **Git writes are owner-only.** Agents must not commit, push, merge, rebase, reset, revert, cherry-pick, tag, or rewrite Git history, even if asked to do so in a task-level instruction. The owner performs all Git writes.
+- Agents must not switch branches or discard working-tree changes without explicit owner approval.
+- Inspection commands include `git status`, `git diff`, `git log`, `git show`, and branch-listing commands. `git fetch` is allowed without separate approval to refresh remote-tracking references; it can update those references but does not itself commit, push, merge, or rewrite Git history. All Git history writes remain owner-only.
+- Start task branches from an up-to-date `main` when the owner has confirmed the relevant refs; never assume a feature branch's ancestry or contents based only on its name.
+- Never commit secrets, tokens, `.env`, or data whose licence does not permit redistribution.
+- Any code or behaviour change needs appropriate tests. Run the pinned Ruff check and pytest when applicable; report actual output honestly.
+- Explain every non-obvious line so the owner can defend the implementation in an interview.
+- `PROJECT_STATE.md` is the canonical project status and decision document. Browser Claude reads it from the synced repository; do not maintain a separate competing copy.
 
 ## 8. AI-use rules
-1. Derive by hand first; AI checks and assists.
-2. Tests come from the mathematics, not from the code under test.
+
+1. The owner derives mathematical arguments by hand first. AI may explain concepts, provide hints, check the owner's reasoning, and locate errors; AI must not write derivations or proofs intended for the owner's report.
+2. Tests should arise from mathematical reasoning and independent expected behaviour, not merely duplicate the implementation under test.
 3. Any line the owner cannot explain does not merge.
 4. Keep an honest record of how AI was used, and be ready to explain it in an interview.
-5. Local models (R1 distills, Qwen Coder) are juniors: verify everything, especially proofs.
+5. Local models (R1 distills, Qwen Coder) are junior helpers: verify everything, especially proofs.
 
 ## 9. Reading list
+
 - Boyd & Vandenberghe, *Convex Optimization*, ch. 5 (duality).
 - Wolsey, *Integer Programming*, ch. 1–2 (only for the MILP stretch).
 - Ang's papers on LMDI.
@@ -119,55 +144,107 @@ Counterfactual merit-order studies and Shapley decompositions in energy each exi
 - Wood, Wollenberg & Sheblé, *Power Generation, Operation, and Control* (UC formulations, stretch only).
 
 ## 10. Unverified / to check
-- Novelty of the Shapley-on-LP-dispatch attribution (literature search).
-- éCO2mix granularity and coverage; data licences for all sources.
-- Whether `dsh` can use a local LM Studio endpoint; what `dsh` actually is beyond third-party descriptions; its `0.2.0-rc.2` release-candidate stability.
-- ~~Whether `.gitignore` exists~~ **Resolved:** it exists and covers `.venv/`, `.env`, `data/`, `__pycache__/`, `*.pyc`, `.ipynb_checkpoints/` (seen in the synced repo).
-- Whether `.venv/` ever got committed: the synced snapshot shows only 4 files, which looks clean, but the sync may filter. Confirm with `git ls-files | grep venv` (must print nothing).
-- ~~Repo visibility~~ **Resolved:** private, connected via the GitHub App.
-- Dependencies in `requirements.txt` are unpinned (todo: `pyproject.toml` + pinned versions).
-- Level requirements of specific IEA postings (Master's vs. undergraduate).
-- *Convention de stage* process at Paris-Saclay.
+
+- **Research novelty:** the specific combination of LP-dispatch Shapley attribution, order-dependence analysis, and bootstrap uncertainty has not yet been established as novel. Literature search is due Oct 22.
+- **Data:** verify éCO2mix granularity, year coverage, and licences; verify licences and access conditions for all other sources.
+- **Fuel/carbon prices:** source remains TBD.
+- **Validation:** metrics must be pre-registered before real-data model runs.
+- **IEA applications:** re-check current official eligibility guidance and the education-level requirement for each posting; ask Paris-Saclay about the *convention de stage* process.
+- **GitHub CI:** local tests and pinned Ruff passed according to recorded local output dated 2026-10-14; GitHub Actions status has not been independently checked by Claude Code.
+- **KKT learning deliverable:** the owner still needs to answer questions 1–3 in their own words, redo the Probe A explanation, and edit the write-up. Browser Claude reported a v3 write-up on 2026-10-14; it was not in the tracked-file list inspected that day.
+- **Repository hygiene:** `README.md`, `ASSUMPTIONS.md`, and `report/` are missing from the current local checkout. Dependency pins exist in `requirements.txt`; a migration to `pyproject.toml` has not been performed.
+- **November examination dates:** not yet supplied.
+- **One-sided derivatives at degenerate demand points:** rule is proposed; confirm behaviour on the hourly model.
+- **Full-year model and data pipeline:** not yet verified as implemented.
+- **Shapley/LMDI/uncertainty results:** not yet verified as implemented or run.
+- **Test design:** `tests/test_three_generator.py::test_raw_pyomo_duals` builds a separate Pyomo model rather than exercising `solve_dispatch()`; it tests raw solver dual signs, but does not independently test the production function's dual extraction. Improve this when appropriate.
+- **Branch cleanup:** the 2026-10-14 branch listing showed local `model/three-generator-kkt` and remote-tracking `origin/model/three-generator-kkt` and `origin/chore/claude-code-config`. Check local remote-tracking refs with `git branch -r --merged origin/main` (fetch is allowed under Section 7) to assess merge status. This check does not delete branches; the owner decides any deletion.
+- **Numerical results from the write-up:** results not asserted by repository tests (including any Shapley split, first-order total, or convexity-gap figure) must remain unverified until reproduced from code or independently checked calculations.
+- **Role/tool configuration:** on 2026-10-14, `.claude/settings.json` and `CLAUDE.md` were modified in the working tree and shown as uncommitted by `git status --short`. Review their exact diff before the owner decides whether to keep them.
+- **CI/tooling follow-up:** check the actual GitHub Actions result; consider adding a minimal README; align local and pinned Ruff versions or document the reason for using the pinned version. Do not infer a CI result from local tests.
 
 ## 11. Current status
-**Done**
-- Project chosen and scoped; tooling plan agreed (D1–D5).
-- Repo skeleton created and pushed: `requirements.txt`, `.gitignore`, `tests/test_smoke.py`, `.github/workflows/ci.yml`. **CI green** on GitHub Actions (ruff + pytest, Python 3.12), reported by owner. Local `ruff check .` and `pytest` also pass. Contents reviewed by Claude via the synced repo: fine for this stage.
-- Repo connected to the Claude Project. **Setup phase is over: nothing left to configure.**
-- 3-generator problem solved by hand (G1: 100 MW, 10 €/MWh; G2: 50 MW, 50 €/MWh; G3: 50 MW, 100 €/MWh; demand 120 MW): dispatch 100 / 20 / 0 MW, marginal unit G2, price 50 €/MWh, total cost 2,000 €/h. Numbers verified by Claude. The derivation itself was **not shown**, and the capacity-bound multipliers were not reported.
+
+Evidence labels:
+- **Verified locally:** observed directly in dated WSL command output or a recorded command result.
+- **Verified in Git history:** supported by locally available commit history.
+- **Asserted by test code:** the source contains an assertion for the result; this is distinct from a recorded test run.
+- **Reported by Browser Claude:** stated in the update provided by the owner on 2026-10-14; not independently checked by Claude Code.
+- **Unverified:** evidence is not currently available.
+
+**Verified locally on 2026-10-14**
+- After activating `.venv`, `pytest` collected 8 tests; all 8 passed in 0.52 seconds.
+- `ruff check .` passed using pinned Ruff 0.1.6. Ruff 0.16.9 previously reported an `I001` import-formatting finding that did not reproduce under the pinned version.
+- `python3 -m json.tool .claude/settings.json` succeeded.
+- `git diff --check` produced no output.
+- `CLAUDE.md` was verified to end with a newline.
+- `.claude/settings.json` and `CLAUDE.md` remain modified in the working tree and uncommitted. The owner approved the settings deny rules; final approval of the complete three-file diff is still required.
+
+**Asserted by source and test code inspected on 2026-10-14**
+- `src/dispatch.py` explicitly negates the raw duals for both upper and lower capacity constraints and checks that the solver termination condition is optimal before loading the solution.
+- The baseline test asserts total cost 2000, dispatch `(100, 20, 0)`, `lambda = 50`, `mu_max[G1] = 40`, `mu_min[G3] = 50`, and strong duality.
+- Probe A asserts that the returned lambda lies in `[10, 50]` and that HiGHS currently returns the left endpoint, 10.
+- Probe B asserts total cost 2400 at G1 capacity 90; Probe C asserts 4100 at capacity 60; the infeasibility test expects an exception when G1 capacity is 10.
+- The Shapley-corner test asserts costs 2000, 2500, 3200, and 4200 for the four combinations shown in that test.
+- `test_raw_pyomo_duals` separately constructs a model to assert raw dual signs; it does not test extraction through `solve_dispatch()`.
+
+**Verified in local Git history**
+- PR #2 merge commit: `bffcef8` (`Merge pull request #2 from jiuyueqiuu/chore/claude-code-config`).
+- PR #3 merge commit: `b57fbf2` (`Merge pull request #3 from jiuyueqiuu/model/three-generator-kkt`).
+- PR #3 merge changes include `PROJECT_STATE.md`, `requirements.txt`, `src/dispatch.py`, and `tests/test_three_generator.py`.
+- In the earlier reconciliation, `HEAD`, `main`, and `origin/main` were reported at `b57fbf2`; the current branch listing alone does not establish that all refs still point to that commit.
+
+**Reported by Browser Claude; owner follow-up remains**
+- Browser Claude reported on 2026-10-14 that PR #2 and PR #3 merged on Oct 13 and described the KKT write-up as version 3. Local Git history confirms the merge commits, but not every scientific claim or write-up detail.
+- Open owner deliverables as of 2026-10-14: answer KKT questions 1–3 in the owner's own words, revisit Probe A, complete the literature search, and produce a defensible contribution statement by Oct 22.
+- Browser Claude reported selecting interconnection option A during the Oct 11 schedule rebuild; owner confirmation is pending (see D6).
 
 **Open deliverables**
 
-| Deliverable | Due |
+| Deliverable | Due / status |
 |---|---|
-| Checkpoint: photo of KKT steps 1–3 (general n-generator problem with every inequality as h(g) ≤ 0 and its own multiplier; Lagrangian + stationarity; three-state analysis gᵢ = 0 / 0 < gᵢ < Gᵢ / gᵢ = Gᵢ), even if wrong | **Thu Oct 1** |
-| Full KKT write-up: steps 1–3 + complementary slackness and dual feasibility + numbers plugged in (full multiplier vector) + strong-duality check (dual objective = 2,000) | **Tue Oct 6** |
-| Probes A (d = 100, degeneracy), B (G1 capacity 100 → 90, predict via multipliers then re-solve), C (G1 capacity → 60, explain prediction vs true change) | **Tue Oct 6** |
-| Pyomo + HiGHS model returning duals of the balance constraint **and** capacity bounds; `tests/test_three_generator.py` asserting the *hand-computed* values; on a branch (e.g. `docs/kkt-derivation`), never on `main` | **Tue Oct 6** |
-| Housekeeping on that branch: commit `PROJECT_STATE.md`; run `git ls-files \| grep venv` | with the branch |
-| Three-sentence contribution statement | **Fri Oct 9** |
-| Literature search on novelty | by Mon Oct 12 |
-| Coding-agent decision | after Oct 6 |
+| Review feature-branch cleanup evidence; do not delete branches until the owner decides | Proposed: Thu Oct 15 |
+| Literature search (at least 10 sources), owner answers to KKT questions 1–3, redo Probe A explanation, write-up edits and `.tex` in `report/`, three-sentence contribution statement | Thu Oct 22 |
+| Pre-register validation metrics | Oct 28 |
+| Implement and validate full-year French dispatch for 2019 | Nov 15 |
+| Hydro budgets, pumped storage, and interconnection gate | Nov 16–29 |
+| Shapley engine and LMDI benchmark | Nov 30–Dec 14 |
+| Bootstrap, sensitivity, and 2022/2024 analysis | Dec 15–Jan 4 |
+| Full report and repository polish | By Jan 18 |
+| Target IEA application submission | Around Feb 1; hard planning deadline Feb 15 |
 
-**Blockers:** none. Setup excuses are no longer available.
+**Current blockers (evidence recorded 2026-10-14):** no technical blocker was demonstrated by the inspected toy-model code and tests. The full-year model is not yet verified as implemented; open decisions and unverified items remain in Sections 5 and 10.
 
-## 12. Session protocol (for Claude in this Project)
-- Start: read this file, state in two lines where the project stands, then push on the next action.
-- Role: design reviewer and red team. Critique derivations, code and drafts bluntly; do not validate weak work; flag overclaims.
-- Do not write the owner's derivations for them. Check them.
-- This Project uses one long working thread. If answers start drifting or forgetting decisions, open a fresh chat in the Project; this file carries continuity, not the thread.
-- The owner presses **Sync** on the GitHub source before each session; Claude flags when the snapshot looks stale.
-- End of session: output the exact updated sections of this file (status, decisions, open questions, unverified items) for the owner to paste in.
-- Never assert something about the owner's machine or repo that has not been shown in the conversation.
-- The owner tends to report results without the working. Always ask for the derivation, the raw terminal output or the failing log, and do not accept a summary in its place.
-- Work happens on branches; CI must be green before anything merges to `main`.
+## 12. Session protocol and roles
 
----
+### Owner
+- Makes project, scope, deadline, and methodology decisions.
+- Derives mathematical arguments and proofs intended for the report.
+- Performs all Git writes: commits, pushes, merges, rebases, resets, reverts, cherry-picks, tags, history rewrites, and branch deletion.
+- Confirms proposed dates and unresolved choices. Reviews diffs before deciding whether to apply changes. Reports each PR number and CI status to Browser Claude, and reports any moved deadline before the date.
+
+### Claude Code
+- Reads this file before each task and briefly states current status and the next concrete action.
+- Implements and tests approved code/documentation changes on a feature branch; does not perform Git writes.
+- Must not switch branches or discard changes without explicit owner approval.
+- At the end of a meaningful task, updates Sections 10 (unverified items), 11 (status/deliverables), and 13 (change log) itself, using dated evidence. It must not silently change project decisions in Sections 1, 3, 5, or 6; propose material changes for owner confirmation.
+- Gives a concise handoff in chat: changed files, exact checks and results, unverified items, and owner decisions needed.
+- Never claims to have inspected a live repository, machine, CI run, or browser state unless evidence was supplied. Ask for raw terminal output or logs when needed.
+
+### Browser Claude
+- Advises, researches, reviews pull requests, and audits this file against the synced repository.
+- Does not edit the repository or maintain a separate canonical status copy.
+- Distinguishes observed GitHub evidence from statements reported by the owner or another assistant.
+
+### Shared rules
+- The owner derives mathematical arguments by hand first. AI may explain concepts, provide hints, check the owner's reasoning, and locate errors; AI must not write derivations or proofs intended for the owner's report.
+- Agents may not commit, push, merge, rebase, reset, revert, cherry-pick, tag, rewrite Git history, or delete branches. The owner performs Git writes.
+- Distinguish local implementation, local verification, commits, remote pushes, merges, and CI results. Identify whether each fact was verified locally, observed in Git history, asserted by supplied tests, or reported by the owner/Browser Claude.
+- Ask the owner about priorities, deadlines, project direction, and genuinely ambiguous decisions. Record proposals as **Proposed** rather than silently deciding.
+- Keep this file canonical. Do not create duplicate project-status or decision logs. `ASSUMPTIONS.md` is reserved for numerical assumptions and their sources.
 
 ## 13. Change log
-- 2026-09-29: initial version.
-- 2026-09-29: repo skeleton and CI recorded; 3-generator result recorded; `dsh` status and agent-decision deferral added; open deliverables with due dates added; unverified items extended.
-- 2026-09-29 23:15: repo connected to the Project and reviewed; `.gitignore` and visibility items resolved; Jan 18 public-repo gate with checklist added; repo-hygiene standards added; Thu Oct 1 checkpoint added; session protocol updated for the single-thread Project.
 
-## Open Decisions
-- **Degenerate Hours:** LP solvers return an arbitrary shadow price within $[\partial^-C, \partial^+C]$ during degenerate intervals. We will implement a rule to report both one-sided derivatives by re-solving at $D \pm \varepsilon$.
+- 2026-09-29: initial project-state document; initial repository, scope, and timeline recorded.
+- 2026-10-14: reconciliation prepared from local repository evidence and the Browser Claude update supplied by the owner. KKT implementation and merge history are recorded separately from remaining owner learning deliverables. Previously recorded local checks: pinned Ruff 0.1.6 passed, 8 tests passed, and `git diff --check` passed. GitHub Actions status, novelty, data licences, and full-year implementation remain unverified; public visibility was reported by the owner on 2026-09-29.
+- 2026-10-14: workflow reconciliation: recorded role split (D10), owner-only Git history writes, owner-authored mathematical derivations, D6 pending owner confirmation, the value-function subgradient correction, evidence labels, the `test_raw_pyomo_duals` testing limitation, and the `dsh` decision as open. October 15 remains proposed; the Oct 17 placeholder was removed.
