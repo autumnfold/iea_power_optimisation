@@ -73,7 +73,7 @@ Counterfactual merit-order studies and Shapley decompositions in energy each exi
 | D4 | Agents work on feature branches; owner performs all Git writes | Decided by owner |
 | D5 | Owner derives mathematics by hand first; AI may explain, hint, check reasoning, and locate errors, but must not write report derivations/proofs | Decided by owner |
 | D6 | Interconnection: fixed net exchanges (option A) initially; price-taking neighbours (B) remain a stretch | **Pending owner confirmation.** Browser Claude reportedly selected A during the Oct 11 schedule rebuild; that report is not owner confirmation. |
-| D7 | Claude Code is the primary implementation tool; local rules and deny patterns are being configured | Configuration edits exist in the current working tree. `dsh` is currently unused; dropping it is undecided. |
+| D7 | Claude Code is the primary implementation tool; local rules and deny patterns are configured | Deny patterns are configured in `.claude/settings.json`. Commit `6c2a483` added the history-writing deny rules (`merge`, `rebase`, `reset`, `revert`, `cherry-pick`, `tag`, `branch -d`/`-D`) and the updated `CLAUDE.md`; it was merged through PR #4 at `ef72b3c` (verified in local Git history by Claude Code, 2026-10-14). `dsh` is currently unused; dropping it is undecided. |
 | D8 | Degenerate hours: report one-sided demand-cost derivatives by re-solving at demand ± ε | Proposed by owner; confirm implementation when the hourly model exists |
 | D9 | Explicit nonnegativity constraints in the toy model so lower-bound multipliers are available for KKT tests | Implemented in the supplied `src/dispatch.py`; tests assert the lower-bound multiplier. Full-model relevance remains to be revisited. |
 | D10 | Role split: owner decides and performs Git writes; Claude Code implements/tests and maintains status; Browser Claude advises/reviews but does not edit the repository | Decided by owner, 2026-10-14 |
@@ -89,7 +89,7 @@ Counterfactual merit-order studies and Shapley decompositions in energy each exi
 - At the November 29 gate, review whether price-taking neighbours are feasible; otherwise retain fixed net exchanges and disclose the limitation.
 - `dsh`: decide whether to retain or remove it; do not silently treat it as dropped.
 
-Repository: `https://github.com/jiuyueqiuu/iea_power_optimisation` (remote URL confirmed locally). Local Git history contains the PR #2 and PR #3 merge commits. Repository visibility: **public, reported by owner on 2026-09-29**.
+Repository: `https://github.com/jiuyueqiuu/iea_power_optimisation` (remote URL confirmed locally). Local Git history contains the PR #2, PR #3, and PR #4 merge commits. Repository visibility: **public, reported by owner on 2026-09-29**.
 
 ## 6. Timeline (reconciled 2026-10-14)
 
@@ -158,9 +158,12 @@ The schedule and reported milestone completion above are based partly on a Brows
 - **Full-year model and data pipeline:** not yet verified as implemented.
 - **Shapley/LMDI/uncertainty results:** not yet verified as implemented or run.
 - **Test design:** `tests/test_three_generator.py::test_raw_pyomo_duals` builds a separate Pyomo model rather than exercising `solve_dispatch()`; it tests raw solver dual signs, but does not independently test the production function's dual extraction. Improve this when appropriate.
-- **Branch cleanup:** the 2026-10-14 branch listing showed local `model/three-generator-kkt` and remote-tracking `origin/model/three-generator-kkt` and `origin/chore/claude-code-config`. Check local remote-tracking refs with `git branch -r --merged origin/main` (fetch is allowed under Section 7) to assess merge status. This check does not delete branches; the owner decides any deletion.
+- **Branch cleanup:** on 2026-10-14, after `git fetch origin`, with `main` and `origin/main` both at `ef72b3c` (verified by Claude Code):
+  - `git branch -r --merged origin/main` listed `origin/chore/claude-code-config`, `origin/chore/workflow`, `origin/main`, and `origin/model/three-generator-kkt`.
+  - `git branch --merged main` listed `chore/workflow`, `docs/state-pr4`, `main`, and `model/three-generator-kkt`. `docs/state-pr4` appears because it pointed at the same commit as `main` when listed.
+  - There is no local `chore/claude-code-config` branch.
+  - These listings only show merge status. The owner decides any branch deletion.
 - **Numerical results from the write-up:** results not asserted by repository tests (including any Shapley split, first-order total, or convexity-gap figure) must remain unverified until reproduced from code or independently checked calculations.
-- **Role/tool configuration:** on 2026-10-14, `.claude/settings.json` and `CLAUDE.md` were modified in the working tree and shown as uncommitted by `git status --short`. Review their exact diff before the owner decides whether to keep them.
 - **CI/tooling follow-up:** check the actual GitHub Actions result; consider adding a minimal README; align local and pinned Ruff versions or document the reason for using the pinned version. Do not infer a CI result from local tests.
 
 ## 11. Current status
@@ -178,7 +181,6 @@ Evidence labels:
 - `python3 -m json.tool .claude/settings.json` succeeded.
 - `git diff --check` produced no output.
 - `CLAUDE.md` was verified to end with a newline.
-- `.claude/settings.json` and `CLAUDE.md` remain modified in the working tree and uncommitted. The owner approved the settings deny rules; final approval of the complete three-file diff is still required.
 
 **Asserted by source and test code inspected on 2026-10-14**
 - `src/dispatch.py` explicitly negates the raw duals for both upper and lower capacity constraints and checks that the solver termination condition is optimal before loading the solution.
@@ -192,7 +194,8 @@ Evidence labels:
 - PR #2 merge commit: `bffcef8` (`Merge pull request #2 from jiuyueqiuu/chore/claude-code-config`).
 - PR #3 merge commit: `b57fbf2` (`Merge pull request #3 from jiuyueqiuu/model/three-generator-kkt`).
 - PR #3 merge changes include `PROJECT_STATE.md`, `requirements.txt`, `src/dispatch.py`, and `tests/test_three_generator.py`.
-- In the earlier reconciliation, `HEAD`, `main`, and `origin/main` were reported at `b57fbf2`; the current branch listing alone does not establish that all refs still point to that commit.
+- Historical (before PR #4): in the earlier reconciliation, `HEAD`, `main`, and `origin/main` were reported at `b57fbf2`. This is no longer the current state; see the PR #4 record below.
+- PR #4 merge commit: `ef72b3c` (`Merge pull request #4 from jiuyueqiuu/chore/workflow`), with parents `b57fbf2` and `6c2a483`. `git diff --stat ef72b3c^1 ef72b3c` shows exactly three files changed: `.claude/settings.json`, `CLAUDE.md`, and `PROJECT_STATE.md`. Verified by Claude Code on 2026-10-14 after `git fetch origin`. At that verification time on 2026-10-14, `HEAD`, `main`, and `origin/main` all resolved to `ef72b3c`; this is a dated observation, not a claim about the current checkout. The GitHub Actions result for PR #4 has not been verified.
 
 **Reported by Browser Claude; owner follow-up remains**
 - Browser Claude reported on 2026-10-14 that PR #2 and PR #3 merged on Oct 13 and described the KKT write-up as version 3. Local Git history confirms the merge commits, but not every scientific claim or write-up detail.
@@ -248,3 +251,4 @@ Evidence labels:
 - 2026-09-29: initial project-state document; initial repository, scope, and timeline recorded.
 - 2026-10-14: reconciliation prepared from local repository evidence and the Browser Claude update supplied by the owner. KKT implementation and merge history are recorded separately from remaining owner learning deliverables. Previously recorded local checks: pinned Ruff 0.1.6 passed, 8 tests passed, and `git diff --check` passed. GitHub Actions status, novelty, data licences, and full-year implementation remain unverified; public visibility was reported by the owner on 2026-09-29.
 - 2026-10-14: workflow reconciliation: recorded role split (D10), owner-only Git history writes, owner-authored mathematical derivations, D6 pending owner confirmation, the value-function subgradient correction, evidence labels, the `test_raw_pyomo_duals` testing limitation, and the `dsh` decision as open. October 15 remains proposed; the Oct 17 placeholder was removed.
+- 2026-10-14: recorded the PR #4 merge (`ef72b3c`, second parent `6c2a483`; it changed `.claude/settings.json`, `CLAUDE.md`, and `PROJECT_STATE.md`), verified in local Git history by Claude Code after `git fetch origin`. Removed the obsolete claims that `.claude/settings.json` and `CLAUDE.md` were modified and uncommitted. Updated the D7 evidence and the branch-cleanup listings. The GitHub Actions result for PR #4 remains unverified.
