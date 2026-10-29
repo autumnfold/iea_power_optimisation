@@ -89,7 +89,7 @@ Counterfactual merit-order studies and Shapley decompositions in energy each exi
 - At the November 29 gate, review whether price-taking neighbours are feasible; otherwise retain fixed net exchanges and disclose the limitation.
 - `dsh`: decide whether to retain or remove it; do not silently treat it as dropped.
 
-Repository: `https://github.com/jiuyueqiuu/iea_power_optimisation` (remote URL confirmed locally). Local Git history contains the PR #2, PR #3, and PR #4 merge commits. Repository visibility: **public, reported by owner on 2026-09-29**.
+Repository: `https://github.com/autumnfold/iea_power_optimisation`. GitHub username changed from `jiuyueqiuu` to `autumnfold`, **reported by owner on 2026-10-29**; new URL verified by Claude Code via clone on 2026-10-29. Local Git history contains the PR #2, PR #3, and PR #4 merge commits. Repository visibility: **public, reported by owner on 2026-09-29**.
 
 ## 6. Timeline (reconciled 2026-10-14)
 
@@ -165,6 +165,7 @@ The schedule and reported milestone completion above are based partly on a Brows
   - These listings only show merge status. The owner decides any branch deletion.
 - **Numerical results from the write-up:** results not asserted by repository tests (including any Shapley split, first-order total, or convexity-gap figure) must remain unverified until reproduced from code or independently checked calculations.
 - **CI/tooling follow-up:** check the actual GitHub Actions result; consider adding a minimal README; align local and pinned Ruff versions or document the reason for using the pinned version. Do not infer a CI result from local tests.
+- **Local Git remote after the username change:** the owner's local `origin` may still point to `jiuyueqiuu/iea_power_optimisation`. GitHub redirects renamed accounts' repositories for now, but the owner should run `git remote set-url origin https://github.com/autumnfold/iea_power_optimisation`. Not verified by Claude Code.
 
 ## 11. Current status
 
@@ -252,3 +253,4 @@ Evidence labels:
 - 2026-10-14: reconciliation prepared from local repository evidence and the Browser Claude update supplied by the owner. KKT implementation and merge history are recorded separately from remaining owner learning deliverables. Previously recorded local checks: pinned Ruff 0.1.6 passed, 8 tests passed, and `git diff --check` passed. GitHub Actions status, novelty, data licences, and full-year implementation remain unverified; public visibility was reported by the owner on 2026-09-29.
 - 2026-10-14: workflow reconciliation: recorded role split (D10), owner-only Git history writes, owner-authored mathematical derivations, D6 pending owner confirmation, the value-function subgradient correction, evidence labels, the `test_raw_pyomo_duals` testing limitation, and the `dsh` decision as open. October 15 remains proposed; the Oct 17 placeholder was removed.
 - 2026-10-14: recorded the PR #4 merge (`ef72b3c`, second parent `6c2a483`; it changed `.claude/settings.json`, `CLAUDE.md`, and `PROJECT_STATE.md`), verified in local Git history by Claude Code after `git fetch origin`. Removed the obsolete claims that `.claude/settings.json` and `CLAUDE.md` were modified and uncommitted. Updated the D7 evidence and the branch-cleanup listings. The GitHub Actions result for PR #4 remains unverified.
+- 2026-10-29: recorded the GitHub username change from `jiuyueqiuu` to `autumnfold` (reported by owner). Updated the repository URL in section 5 and verified the new URL by cloning (Claude Code). The PR #2–#4 merge records in section 11 keep their original commit messages, which still name `jiuyueqiuu`. The owner's local remote update is recorded as unverified in section 10.
