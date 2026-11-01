@@ -2,7 +2,7 @@
 
 ## Context
 
-Hourly LP dispatch model of the French power system; Shapley attribution of cost changes between years. Owner: L2 maths student.
+Merit-order LP model of the French power system (load-duration curve, ~8 technology groups); exact Shapley attribution of the 2019→2022 change in generation cost to three drivers: residual demand, nuclear availability, gas and carbon prices. Rescoped on 2026-11-01 (D12 in `PROJECT_STATE.md`). Owner: L2 maths student.
 
 `PROJECT_STATE.md` is the canonical project plan and status document. Read it before every task. If it is unavailable or its contents are unclear, ask the owner rather than guessing.
 
