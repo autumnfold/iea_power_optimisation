@@ -1,4 +1,7 @@
+numpy==2.5.3
+pandas==3.0.5
 pyomo==6.8.0
 highspy==1.7.2
 pytest==9.1.1
 ruff==0.1.6
+scipy==1.18.1
