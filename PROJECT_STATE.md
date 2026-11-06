@@ -1,6 +1,6 @@
 # PROJECT_STATE.md
 
-> Canonical source of truth for project status, decisions, open questions, and change history. Last reconciled: 2026-11-01 (rescope, D12).
+> Canonical source of truth for project status, decisions, open questions, and change history. Last reconciled: 2026-11-06 (direction change to domestic adequacy, D15).
 > Evidence labels matter: distinguish local verification, Git history, reports from Browser Claude, and unresolved claims.
 > **Working protocol:** follow the role-specific instructions in Section 12 before starting work.
 
@@ -29,72 +29,105 @@ Land a summer internship at the **International Energy Agency (IEA, Paris)** nex
 
 ## 3. The project
 
-**Working title (since 2026-11-01):** *Why did producing electricity in France cost so much more in 2022 than in 2019? A merit-order model with exact Shapley attribution.*
+**Research question (owner, 2026-11-06):** *Why did France's domestic electricity supply struggle to meet demand in 2022 compared with 2019, and to what extent can the change be attributed to conventional generation availability versus demand and resource conditions?*
 
-**Question:** how much of the rise in France's electricity generation cost between 2019 and 2022 came from (1) the change in residual demand, (2) lower nuclear availability, and (3) higher gas and carbon prices?
+**Working title:** to be chosen by the owner. *Proposed (Browser Claude):* "Domestic electricity adequacy in France, 2019 vs 2022: an exact two-driver attribution".
 
-**Origin:** a merge of two candidate projects (LMDI decomposition + weather normalisation, and a power-system optimisation roadmap). The resulting hybrid (hourly 8,760-hour model, ~6 drivers, weather regression, bootstrap, LMDI benchmark, 2019→2022→2024) was judged too large by the owner on 2026-11-01 and rescoped (D12). The superseded design is kept in Git history (`1b70363` and earlier).
+**History:**
+- The original hybrid project was rescoped on 2026-11-01 (D12) to a 3-driver attribution of variable cost.
+- On 2026-11-06, the first adequacy check showed that a closed French system cannot meet all 2022 demand in some hours. A closed-system cost attribution would therefore depend on pricing unmet energy, and no defensible price exists. The owner made domestic adequacy the primary objective (D15) and moved cost attribution to a secondary objective (D21).
+- Superseded designs are kept in Git history and in `docs/check_protocol_v6.md`.
 
-### Method (approved by owner, 2026-11-01)
-1. **Model:** the three-generator merit-order LP in `src/dispatch.py`, scaled to roughly 8 technology groups (exact grouping decided after the data check).
-2. **Load-duration curve instead of chronological hours:** about 20 demand blocks per year, sorted from highest to lowest. Whether to use one curve per year or one per season/month is open (see Section 5): 2022's nuclear shortfall was concentrated in part of the year.
-3. **Residual demand:** demand minus wind, solar, hydro and net imports, all taken as fixed observed profiles. Limitation (to state in the report): these sources do not respond in the counterfactual runs.
-4. **Drivers (3):** residual demand; nuclear availability; gas and carbon prices. All $2^3 = 8$ combinations are solved, and the change in cost is split exactly with the 3-player Shapley value.
-5. **Uncertainty:** sensitivity analysis instead of a bootstrap. Vary 2–3 cost assumptions by ±20% and check whether the ranking of the drivers holds.
-6. **Validation:** modelled annual generation by technology vs éCO2mix actuals; modelled marginal cost vs the annual average wholesale price as a rough sanity check only.
-7. **Extension, only if the core is finished by mid-January:** split residual demand into separate drivers (e.g. wind and solar as a 4th driver, $2^4 = 16$ runs).
-8. **Report:** 8–10 pages, with the KKT write-up as an appendix.
+### Method
 
-**Listed as "extensions / future work" in the report, not built:** hourly chronological model, hydro energy budgets, pumped storage, interconnection modelling (price-taking neighbours), weather normalisation, bootstrap, LMDI benchmark, 2024 comparison, MILP unit commitment, emissions attribution.
+**Direction approved by owner, 2026-11-06. The detailed implementation plan is Proposed until the owner approves it.**
+
+1. **Closed system (D20):** only domestic generation serves French demand. International exchanges are excluded from all scenarios. Observed exchanges are used only for validation and for comparison with the implied import requirement (D18).
+2. **Net demand, 30-minute step (driver D):**
+   $$N_t = C_t - W_t - S_t - R_t - B_t - H^{\text{PS}}_t$$
+   - $R_t$ is run-of-river and daily pondage;
+   - $B_t$ is bioenergy;
+   - $H^{\text{PS}}_t$ is the **observed net pumped-storage profile** (`hydraulique_step_turbinage` + `pompage`, where `pompage` ≤ 0), which is the baseline (D19).
+3. **Lakes (driver D):** the monthly observed energy budget, dispatched flexibly within each month up to the lake capacity. This is a proxy for available monthly energy, with no shifting between months (see `docs/check_protocol_v6.md`, section 5.2).
+4. **Conventional generation availability (driver A):** nuclear plus fossil available capacity, per month. The two are **grouped**, and their combined contribution must **not** be read as the isolated effect of nuclear availability (D16).
+5. **Monthly load-duration curves.** Availability uses the monthly mean as baseline, with the lowest daily mean as a conservative stress test.
+6. **Metrics (D17):** annual unmet energy (GWh/TWh) and peak shortfall (MW/GW). 2019 is **not** assumed to have zero unmet energy before the results are checked.
+7. **Two drivers, four scenarios** (2019/2022 × 2019/2022), with an exact two-player Shapley attribution. The interaction term is reported explicitly.
+8. **Imports (D18):** the model estimates the **domestic adequacy gap and the implied import requirement under its assumptions**. It does not establish how much of France's historical imports were strictly necessary for security rather than economic reasons.
+9. **Pumped storage (D19):** the observed net profile is the baseline. Flexible generation (observed pumping, monthly generation budget placed freely) is an adequacy sensitivity. The limitations of both are documented.
+10. **Checks (D20):** physical-consistency checks (balance closure; availability at least observed generation; hydro capacities at least observed output) replace the chronological Test A. Test B (the 36 GWh tolerance for modelled 2019) applies exactly as pre-registered in `docs/check_protocol_v6.md`, section 8.3.
+11. **Secondary objective (D21):** variable-cost attribution, to be started only after the adequacy results are judged robust and defensible.
+12. **Deliverable:** a **two-page research note** plus the repository. A longer report is optional.
 
 ### Mathematics
-**Already done (owner's write-up v3, Oct 6; PDFs shared in chat, not yet in the repo):** LP formulation, KKT conditions and their sufficiency, merit-order theorem, dual problem as optimality certificate, convexity of the LP value function, sensitivity ranging, two-driver Shapley example, order dependence. The toy-model results are asserted by the repository tests (Section 11).
 
-**New, and deliberately small:**
-- Load-duration curve: what it is and why sorting hours loses chronology (about 30 minutes).
-- Shapley value for 3 players: the average of each driver's marginal contribution over the $3! = 6$ orderings (about 1 hour, extending the two-driver example already done).
+**Already done:** LP formulation, KKT, duality, convexity of the value function, the two-driver Shapley example with its interaction term (owner's write-up v3, Oct 6). The toy-model results are asserted by the repository tests.
 
-**Optional, not required:** old Question 1 (why the dual is a subgradient of the value function); old Question 2 (interaction term) is absorbed into interpreting the 3-player result; old Question 3 (why the Shapley axioms suit cost attribution) becomes one paragraph in the report.
+**New, deliberately small:**
+- the load-duration curve;
+- placing a limited monthly energy budget against the highest deficits (water-filling);
+- the two-player Shapley value applied to adequacy metrics.
 
-**Dropped with the rescope:** degeneracy and one-sided price derivatives (no price analysis), the Probe A explanation redo, emissions attribution.
+The cost LP of the secondary objective reuses the existing toy model.
 
-Reference facts kept from the write-up: the LP value function is convex and piecewise linear in the right-hand side; an optimal dual vector is a subgradient, and a unique derivative only where the value function is differentiable; hence the first-order dual attribution is a lower bound on the true change, $V(b + \Delta b) \ge V(b) + \lambda^\top \Delta b$, under a consistent sign convention.
-
-### Contribution (replaces the novelty statement)
-A clear, reproducible answer to a concrete, policy-relevant question, from a model the owner can fully explain and defend. Novelty is **not** required (D13). Literature is read for context (how RTE, the IEA and the CRE explained 2022) and to position the result, not to prove originality. Never overclaim in the application.
+### Contribution
+A clear, reproducible answer to a concrete, policy-relevant question (electricity security, the role of interconnection), from a model the owner can fully explain and defend. Novelty is **not** required (D13). Never overclaim in the application or the note.
 
 ## 4. Data sources (verify licence terms for each)
 
-- **RTE éCO2mix, national consolidated and definitive data** (ODRÉ / data.gouv.fr): <https://odre.opendatasoft.com/explore/dataset/eco2mix-national-cons-def/>. Per the data.gouv.fr dataset page (read by Browser Claude, 2026-11-01): **Licence Ouverte / Open Licence 2.0**; 30-minute step for realised consumption, production by source and cross-border exchanges; coverage January 2012 to December 2024. The page does not list the fuel categories by name: **the owner must confirm the columns (nuclear, gas, coal, oil, hydro, wind, solar, bioenergy, exchanges) in the downloaded file.**
-- **Nuclear availability:** candidates are ENTSO-E unavailability data or RTE/EDF publications. Fallback: observed nuclear generation as a proxy (nuclear runs whenever available because it sits low in the merit order), stated as a limitation. To check.
-- **Gas and carbon prices:** annual (or monthly) averages; **source TBD**, licence to check.
-- **Technology costs and efficiencies:** published RTE, IEA or JRC assumptions; every number goes into `ASSUMPTIONS.md` with its source.
-- *No longer needed after the rescope:* Eurostat heating degree days, Copernicus ERA5 (weather regression dropped). ENTSO-E day-ahead prices are optional, only for the validation sanity check.
+- **RTE éCO2mix, national consolidated and definitive data** (ODRÉ / data.gouv.fr): <https://odre.opendatasoft.com/explore/dataset/eco2mix-national-cons-def/>. Licence Ouverte / Open Licence 2.0 (data.gouv.fr page, read by Browser Claude 2026-11-01).
+  - **Check 1 results** (owner's run of `check_eco2mix.py`, 2026-11-06; JSON read by Browser Claude):
+    - 30-minute step, 17,520 rows per year, no missing values;
+    - `pompage` ≤ 0 (−4,036 to −3 MW); `ech_physiques` is import-positive;
+    - the balance $C_t = \sum_k P_{k,t} + \text{pompage}_t + \text{ech}_t$ closes with mean absolute residual 0.7 MW (2019) and 66 MW (2022, unresolved).
+  - Annual generation totals match RTE within about 0.5 TWh.
+  - Consumption is about 2.5 TWh below RTE's totals in both years. Trade differs by 1.7–2.8 TWh. *Hypotheses:* perimeter (Corsica), and physical vs commercial exchanges.
+- **Conventional availability:** an ENTSO-E unit-unavailability reconstruction (method in `docs/check_protocol_v6.md`, section 6), **time-boxed to 2 sessions**. Fallback: monthly brackets (nuclear between the monthly mean and the monthly maximum of observed generation; fossil between the observed maximum and sourced installed capacity).
+- **Installed capacities, 2019 and 2022:** lakes, pumped storage (pumping and generating), fossil by technology. Source: RTE annual reports ("parc installé") or ENTSO-E installed capacity by production type. Owner task.
+- **Secondary objective only:**
+  - World Bank Pink Sheet monthly prices (natural gas Europe, coal, Brent), CC BY 4.0;
+  - carbon price source TBD;
+  - USD→EUR source TBD;
+  - technology costs and efficiencies in `ASSUMPTIONS.md`.
 
 ## 5. Decisions
 
 | # | Decision | Status / evidence |
 |---|---|---|
-| D1 | ~~Hybrid project: dispatch, attribution, and LMDI benchmark~~ → single question: merit-order LP with 3-driver Shapley attribution, 2019 vs 2022 | Narrowed by owner, 2026-11-01 (D12). LMDI benchmark dropped. |
+| D1 | ~~Hybrid project: dispatch, attribution, and LMDI benchmark~~ → single question: merit-order LP with 3-driver Shapley attribution, 2019 vs 2022 | Narrowed by owner, 2026-11-01 (D12). LMDI benchmark dropped. Primary question replaced on 2026-11-06 (D15). |
 | D2 | ~~Unit commitment (MILP) is a stretch~~ → not built; listed as future work | Superseded by D12, 2026-11-01 |
 | D3 | Minimal AI tooling: one terminal coding agent, chat as reviewer/red team, local models as junior helpers; no multi-agent orchestration | Decided by owner |
 | D4 | Agents work on feature branches; owner performs all Git merges (see D10 for the 2026-11-01 exception on commits/pushes) | Decided by owner |
 | D5 | Owner derives mathematics by hand first; AI may explain, hint, check reasoning, and locate errors, but must not write report derivations/proofs | Decided by owner |
-| D6 | Interconnection: net imports enter as a fixed observed profile inside residual demand; price-taking neighbours (option B) dropped | **Resolved by owner, 2026-11-01**, as part of the approved rescope (D12) |
+| D6 | ~~Interconnection: net imports enter as a fixed observed profile inside residual demand~~; price-taking neighbours (option B) dropped | Resolved by owner 2026-11-01; **superseded by D20 (2026-11-06):** closed system, exchanges excluded from all scenarios |
 | D7 | Claude Code is the primary implementation tool; local rules and deny patterns are configured | Deny patterns are configured in `.claude/settings.json`. Commit `6c2a483` added the history-writing deny rules (`merge`, `rebase`, `reset`, `revert`, `cherry-pick`, `tag`, `branch -d`/`-D`) and the updated `CLAUDE.md`; it was merged through PR #4 at `ef72b3c` (verified in local Git history by Claude Code, 2026-10-14). `dsh` is currently unused; dropping it is undecided. |
 | D8 | ~~Degenerate hours: report one-sided demand-cost derivatives~~ | Superseded by D12, 2026-11-01: the project attributes costs, not prices |
 | D9 | Explicit nonnegativity constraints in the toy model so lower-bound multipliers are available for KKT tests | Implemented in `src/dispatch.py`; tests assert the lower-bound multiplier. Revisit when scaling the model. |
 | D10 | Role split: owner decides and merges; Claude Code implements/tests and maintains status; Browser Claude advises/reviews | Decided by owner, 2026-10-14. **Amended by owner, 2026-11-01:** Browser Claude is authorised to make repository changes; it commits and pushes to a feature branch and opens a PR, and never merges. |
 | D11 | No separate `DECISIONS.md`; this file is the canonical status and decision record | Decided by owner |
-| D12 | **Rescope:** load-duration-curve merit-order model, 3 drivers ($2^3 = 8$ runs), one year pair (2019→2022), sensitivity analysis instead of bootstrap, 8–10 page report; everything in the "extensions" list of Section 3 is cut | Approved by owner, 2026-11-01 |
+| D12 | **Rescope:** load-duration-curve merit-order model, 3 drivers ($2^3 = 8$ runs), one year pair (2019→2022), sensitivity analysis instead of bootstrap, 8–10 page report | Approved by owner, 2026-11-01. **Partly superseded on 2026-11-06:** the 3-driver cost attribution becomes the secondary objective (D21); the primary question is adequacy (D15); the deliverable becomes a two-page note. |
 | D13 | Novelty is not required; the contribution is a clear, correct, finished answer to a real question. The literature-based novelty gate is removed. | Approved by owner, 2026-11-01 |
 | D14 | Working rule: no task longer than about 2 hours; each ends with a commit. A task untouched for 3 days is cut smaller and reported to Browser Claude, not postponed. | Approved by owner, 2026-11-01 |
+| D15 | **Primary objective: domestic electricity adequacy**, with the research question of Section 3 | Decided by owner, 2026-11-06 |
+| D16 | Two drivers: D = demand and resource conditions (consumption, wind, solar, run-of-river, bioenergy, pumped-storage profile, lake budgets); A = conventional generation availability (nuclear and fossil, **grouped**). A's contribution must not be interpreted as the isolated effect of nuclear availability. | Decided by owner, 2026-11-06 |
+| D17 | Metrics: annual unmet energy and peak shortfall; 2019 is not assumed to be zero before checking | Decided by owner, 2026-11-06 |
+| D18 | Wording on imports: the model estimates the domestic adequacy gap and the implied import requirement under its assumptions; it does not establish how much of historical imports were strictly necessary for security | Decided by owner, 2026-11-06 |
+| D19 | Pumped storage: the observed net profile is the baseline; flexible generation is an adequacy sensitivity; both representations' limitations are documented | Decided by owner, 2026-11-06 |
+| D20 | **Methodology basis:** closed system (scope B2); net demand definition; monthly load-duration curves; hydro separation; ENTSO-E reconstruction approach; Test B 36 GWh pre-registered (approved by owner through methodology notes v1–v6, 2026-11-06). **v6 is frozen** as `docs/check_protocol_v6.md`. Its section 8.1 (chronological LP, storage envelope, two-stage Test A) and the $r_m$ diagnostic are **removed from the core protocol**; Test A is replaced by physical-consistency checks. No further revisions unless an implementation or data issue requires one. | Decided by owner, 2026-11-06 |
+| D21 | Variable-cost attribution is a **secondary objective**, not abandoned; it starts only after the adequacy results are judged robust | Decided by owner, 2026-11-06 |
+| D22 | Literature reduced to four institutional sources, including RTE's winter 2022–23 security-of-supply analysis | Decided by owner, 2026-11-06 |
+| D23 | Browser Claude leads the adequacy pipeline and its tests, on a feature branch through a PR; the owner runs it on the real data, reviews every line and merges | Decided by owner, 2026-11-06 (extends D10) |
 
 **Open decisions and questions**
-- One load-duration curve per year, or one per season/month? Decide after the data check (2022's nuclear shortfall was seasonal).
-- Exact technology grouping (~8 groups): after the data check.
-- Nuclear availability series: which source, or the generation proxy?
-- Gas and carbon price sources remain undecided.
+- **Adequacy implementation plan:** Proposed by Browser Claude on 2026-11-06, awaiting owner approval before implementation.
+- Availability source: ENTSO-E reconstruction or the fallback brackets (after the time-boxed attempt).
+- Lake capacity: installed value (to source) or the observed monthly maximum.
+- *Proposed (Browser Claude, 2026-11-06), owner to decide:*
+  - broaden internship targets beyond the IEA (for example EDF Lab Paris-Saclay, RTE R&D, Paris-Saclay or CentraleSupélec labs, analysis organisations such as Ember);
+  - check the IEA's current education-level requirements;
+  - ask one Paris-Saclay optimisation or operations-research lecturer to review the work once.
+- Secondary objective only: technology grouping, carbon and exchange-rate sources, treatment of unmet energy in a cost attribution.
+- *Resolved 2026-11-06:* one load-duration curve per month (D20); the nuclear availability source follows D20 (ENTSO-E or fallback).
 - November examination dates are needed to adjust the schedule.
 - Ask the Paris-Saclay department about the *convention de stage* process.
 - Check the enrolment-level requirement for every IEA posting before applying.
@@ -103,26 +136,27 @@ A clear, reproducible answer to a concrete, policy-relevant question, from a mod
 
 Repository: `https://github.com/autumnfold/iea_power_optimisation`. GitHub username changed from `jiuyueqiuu` to `autumnfold`, **reported by owner on 2026-10-29**; new URL verified by Claude Code via clone on 2026-10-29. Local Git history contains the PR #2, PR #3, and PR #4 merge commits. Repository visibility: **public, reported by owner on 2026-09-29**.
 
-## 6. Timeline (rebuilt 2026-11-01 after the rescope)
+## 6. Timeline (rebuilt 2026-11-06 after D15; November exam dates still TBD)
 
 | By | Deliverable | Notes |
 |---|---|---|
-| Sep 29–Oct 13 | Repository skeleton, CI workflow, three-generator dispatch/KKT implementation and tests | Done (PR #2, #3 merged) |
-| **Sat Nov 7** | Data check: download éCO2mix 2019 and 2022, load them in pandas, fill `docs/data_feasibility.md` | About 2 hours |
-| **Sun Nov 15** | 5 sources recorded in `docs/literature.md`; the question restated in 3 sentences (question, method, expected answer) | Starter sources already listed in the file |
-| Nov 16–Dec 13 | 2019 model: load-duration curve, ~8 technology groups, checked against the actual 2019 generation mix | Exams fall here (dates TBD): light work |
-| Dec 14–Jan 4 | 2022 run, the 8 combinations, 3-player Shapley, sensitivity analysis | Holidays |
-| Jan 5–25 | Report (8–10 pp) with the KKT write-up as appendix (small fixes only), README, repo polish | Full draft by Jan 18; check README, licence, secret history, author email, data licences, and CI |
-| **Feb 1** | Submit applications | Hard planning deadline Feb 15; IEA rule: at least 3 months before the desired start date |
+| Sep 29–Oct 13 | Repository, CI, three-generator dispatch/KKT model and tests | Done (PR #2, #3) |
+| Nov 6 | Check 1 (balance, sign conventions, first adequacy brackets); methodology notes v1–v6; direction change (D15) | Done |
+| **Nov 7–22** | Installed capacities found; ENTSO-E attempt (≤ 2 sessions) or fallback; adequacy pipeline PR (Browser Claude) reviewed and run on real data; 2 of the 4 institutional sources read | Exams may fall here |
+| **Nov 23–Dec 6** | **Headline result:** four scenarios, two-driver Shapley with interaction, ranges across variants, one figure; physical-consistency report; Test B | |
+| Dec 7–20 | Secondary objective (cost layer), **only if** the adequacy results are judged robust | |
+| Dec 21–Jan 10 | Two-page research note; README | Holidays |
+| Jan 10–Feb 1 | Outreach and applications | Hard planning deadline Feb 15 |
 
-**History:** the Oct 22 gate (literature, contribution statement, KKT questions) was moved by the owner to Oct 25 (on Oct 22), then to Nov 1 (on Oct 25). No project commits were made between Oct 15 (PR #5) and Oct 29 (PR #6, username change). On Nov 1 the owner rescoped instead (D12).
+**History:** the Oct 22 gate was moved to Oct 25, then Nov 1 (owner); on Nov 1 the owner rescoped (D12); on Nov 6 the owner changed the primary objective (D15).
 
-**If a step slips:** apply D14 first (cut the task smaller). Cut order: the extension (4th driver) → sensitivity reduced to one parameter → never the report.
+**If a step slips:** apply D14 first. Cut order: the secondary objective (cost layer) → availability sensitivity reduced to the fallback brackets → never the two-page note.
 
 ## 7. Repo standards
 
 - Work inside the WSL filesystem (`~/projects`), not `/mnt/c`.
-- Tracked layout (verified by Browser Claude on 2026-11-01 at `1b70363`): `.claude/settings.json`, `.github/workflows/ci.yml`, `.gitignore`, `CLAUDE.md`, `PROJECT_STATE.md`, `pytest.ini`, `requirements.txt`, `src/`, `tests/`. The rescope PR adds `docs/literature.md` and `docs/data_feasibility.md`.
+- Tracked layout (verified by Browser Claude on 2026-11-06 at `80a8a44`): `.claude/settings.json`, `.github/workflows/ci.yml`, `.gitignore`, `CLAUDE.md`, `PROJECT_STATE.md`, `pytest.ini`, `requirements.txt`, `docs/literature.md`, `docs/data_feasibility.md`, `src/`, `tests/`. The direction PR adds `docs/check_protocol_v6.md` (frozen, D20).
+- `check_eco2mix.py` (check 1) currently lives outside the repository; the adequacy pipeline will absorb its loading and sign-convention logic, with tests.
 - `README.md`, `ASSUMPTIONS.md`, and `report/` are still missing. Create them when their purposes are reached. `DECISIONS.md` is intentionally not used.
 - `data/` must remain untracked and must never be modified by an agent without explicit owner direction.
 - Current dependency pins in `requirements.txt`: `pyomo==6.8.0`, `highspy==1.7.2`, `pytest==9.1.1`, `ruff==0.1.6`. The CI workflow installs this file, then runs `ruff check .` and `pytest` on Python 3.12. Add `pandas` (pinned) when data loading starts.
@@ -146,23 +180,33 @@ Repository: `https://github.com/autumnfold/iea_power_optimisation`. GitHub usern
 5. Local models (R1 distills, Qwen Coder) are junior helpers: verify everything, especially proofs.
 6. Browser Claude may find and suggest sources; the owner reads the sections cited in the report.
 
-## 9. Reading list (since 2026-11-01)
+## 9. Reading list (since 2026-11-06, D22)
 
-The working list, with links and a reading method, is in `docs/literature.md`: RTE *Bilan électrique 2022*, IEA *Electricity Market Report 2023*, CRE wholesale-market monitoring report for 2022, Ambec & Crampes (TSE) on the 2022 electricity markets, Molnar's chapter on Shapley values, and Kirschen & Strbac for the merit order and load-duration curves.
+Four institutional sources; links and reading method in `docs/literature.md`:
+1. RTE, *Bilan électrique 2022*;
+2. RTE, *Perspectives pour le système électrique pour l'automne et l'hiver 2022-2023* (September 2022), with its updates and the *Bilan de l'hiver 2022-2023* (March 2023);
+3. IEA, *Electricity Market Report 2023*;
+4. CRE, wholesale-market monitoring report for 2022.
 
-*Background only, no longer required:* Boyd & Vandenberghe, *Convex Optimization*, ch. 5 (duality; the needed parts are already in the write-up); Wolsey, *Integer Programming* (MILP dropped); Ang's LMDI papers (LMDI dropped); Wood, Wollenberg & Sheblé (unit commitment dropped).
+*Optional method references:* Molnar (Shapley values); Kirschen & Strbac (merit order, load-duration curves); Ambec & Crampes (TSE). *Background only:* Boyd & Vandenberghe ch. 5; Wolsey; Ang (LMDI); Wood, Wollenberg & Sheblé.
 
 ## 10. Unverified / to check
 
-- **Data (owner, by Nov 7):** confirm the éCO2mix fuel categories, units, time step and 2019/2022 coverage in the downloaded file; check whether a public nuclear availability series exists; find a licensable gas and carbon price source.
-- **Load-duration-curve adequacy:** whether one annual curve represents 2022's seasonal nuclear shortfall well enough, or whether seasonal curves are needed.
+- **Data:**
+  - the 66 MW systematic balance residual in 2022 (candidate: a battery column not read);
+  - the 2 duplicate timestamps per year;
+  - the ~2.5 TWh consumption gap and the trade gap against RTE (hypotheses only);
+  - availability data (ENTSO-E fields, thresholds, licence);
+  - installed capacities;
+  - curtailment assumed negligible (not verified).
+- **Literature:** RTE's winter 2022–23 analyses located by search on 2026-11-06; their contents have not been read.
 - **IEA applications:** re-check current official eligibility guidance and the education-level requirement for each posting; ask Paris-Saclay about the *convention de stage* process.
 - **GitHub CI:** GitHub Actions status has not been independently checked by Claude Code or Browser Claude for any PR; the owner reports it.
 - **KKT write-up:** v3 exists as PDFs shared in chat (Oct 6); it is not in the repository. Small fixes for the appendix (Jan): "mathematically necessary" → conditional uniqueness; convexity-proof feasibility clause; $(\lambda, -\bar\mu)$ sign convention; slope vs shadow price.
 - **Repository hygiene:** `README.md`, `ASSUMPTIONS.md`, and `report/` are missing. Dependency pins exist in `requirements.txt`; a migration to `pyproject.toml` has not been performed.
 - **November examination dates:** not yet supplied.
-- **Full model and data pipeline:** not yet implemented.
-- **Shapley and sensitivity results:** not yet implemented or run.
+- **Adequacy pipeline:** not yet implemented (plan Proposed, 2026-11-06).
+- **Adequacy results:** the first brackets (check 1) used pessimistic fossil capacity and a fixed or unconstrained hydro treatment; they are exploratory, not results.
 - **Test design:** `tests/test_three_generator.py::test_raw_pyomo_duals` builds a separate Pyomo model rather than exercising `solve_dispatch()`; it tests raw solver dual signs, but does not independently test the production function's dual extraction. Improve this when scaling the model.
 - **Branch cleanup:** on 2026-10-14, after `git fetch origin`, with `main` and `origin/main` both at `ef72b3c` (verified by Claude Code):
   - `git branch -r --merged origin/main` listed `origin/chore/claude-code-config`, `origin/chore/workflow`, `origin/main`, and `origin/model/three-generator-kkt`.
@@ -173,6 +217,7 @@ The working list, with links and a reading method, is in `docs/literature.md`: R
 - **CI/tooling follow-up:** align local and pinned Ruff versions or document the reason for using the pinned version. Do not infer a CI result from local tests.
 - **Local Git remote after the username change:** the owner's local `origin` may still point to `jiuyueqiuu/iea_power_optimisation`. GitHub redirects renamed accounts' repositories for now, but the owner should run `git remote set-url origin https://github.com/autumnfold/iea_power_optimisation`. Not verified.
 - *Superseded on 2026-11-01 (D12, D13):* research novelty check; weather-data checks; one-sided derivatives at degenerate demand points; LMDI and bootstrap results; pre-registration of price-based validation metrics.
+- *Superseded on 2026-11-06 (D20):* the chronological Test A, the storage envelope and the $r_m$ diagnostic (`docs/check_protocol_v6.md`, section 8.1).
 
 ## 11. Current status
 
@@ -183,6 +228,18 @@ Evidence labels:
 - **Verified by Browser Claude:** observed by Browser Claude in its own clone of the public repository, with the date.
 - **Reported by owner:** stated by the owner in chat.
 - **Unverified:** evidence is not currently available.
+
+**Reported by owner on 2026-11-06**
+- Ran `check_eco2mix.py` on the éCO2mix national definitive data for 2019 and 2022 and supplied `eco2mix_checks.json`.
+- Approved, through methodology notes v1–v6, the closed-system basis and the check protocol (D20); then the direction change to domestic adequacy (D15–D23).
+
+**Check 1 results** (from the owner's JSON, read by Browser Claude on 2026-11-06)
+- Sign conventions and balance closure: see Section 4.
+- Net demand (with net hydro subtracted) and 2019 net exports, as computed: 361.8 TWh net demand and a net export of 58.5 TWh in 2019; 341.0 TWh net demand and a net import of 14.8 TWh in 2022.
+- Exploratory adequacy brackets (fossil capacity = highest observed output, so pessimistic):
+  - 2022 unmet energy between 0.11 and 2.6 TWh (peak 7.1–12.2 GW);
+  - 2019 unmet energy between 0.004 and 0.43 TWh (peak 1.8–7.0 GW).
+  - These are not results: capacities and the hydro treatment were provisional.
 
 **Reported by owner on 2026-11-01**
 - The original project was too big and too hard; the owner approved the rescope (D12), dropped the novelty requirement (D13) and adopted the 2-hour task rule (D14).
@@ -218,17 +275,18 @@ Evidence labels:
 
 **Open deliverables**
 
-| Deliverable | Due |
-|---|---|
-| Data check: éCO2mix 2019 and 2022 downloaded, loaded, `docs/data_feasibility.md` filled | **Sat Nov 7** |
-| 5 sources in `docs/literature.md`; question restated in 3 sentences | **Sun Nov 15** |
-| Supply November exam dates | As soon as known |
-| 2019 load-duration-curve model, checked against actual mix | Dec 13 |
-| 2022 run, 8 combinations, 3-player Shapley, sensitivity | Jan 4 |
-| Report (8–10 pp), README, repo polish | Draft Jan 18, final Jan 25 |
-| IEA application | Feb 1 |
+| Deliverable | Owner | Due |
+|---|---|---|
+| Approve (or amend) the adequacy implementation plan | Owner | Before implementation |
+| Adequacy pipeline and tests, PR | Browser Claude | After plan approval |
+| Installed capacities (lakes, pumped storage, fossil by technology; 2019, 2022) | Owner | Nov 22 |
+| ENTSO-E attempt (≤ 2 sessions) or decision to use the fallback | Owner | Nov 22 |
+| 2 of the 4 institutional sources read and recorded | Owner | Nov 22 |
+| Headline adequacy result, figure, Test B, physical-consistency report | Both | Dec 6 |
+| Two-page research note | Owner (Browser Claude reviews) | Jan 10 |
+| November exam dates | Owner | As soon as known |
 
-*Superseded on 2026-11-01:* the Oct 22/25/Nov 1 gate items (10-source literature search, novelty-based contribution statement, KKT Questions 1–3, Probe A redo), the hourly-model, hydro/interconnection, LMDI and bootstrap milestones. Branch cleanup (proposed Oct 15) remains the owner's decision, with no date.
+*Superseded on 2026-11-06:* the Nov 7 data-check deliverable (done through check 1), the Nov 15 five-source literature target (replaced by D22), and the cost-model milestones of D12 (moved to the secondary objective, D21).
 
 **Current blockers:** none technical. The schedule depends on the November exam dates.
 
@@ -252,6 +310,7 @@ Evidence labels:
 ### Browser Claude
 - Advises, researches, reviews pull requests, and audits this file against the repository.
 - Since 2026-11-01 (D10 amendment): may commit and push to a feature branch and open a PR when the owner asks; never merges, never rewrites history, never pushes to `main`.
+- Since 2026-11-06 (D23): leads the adequacy pipeline and its tests; takes a more active role in shaping the project, and brings any change of project direction to the owner for decision.
 - Finds readable sources for the owner (Section 2: paper reading is the hardest part).
 - Does not maintain a separate canonical status copy.
 - Distinguishes observed GitHub evidence from statements reported by the owner or another assistant.
@@ -272,3 +331,4 @@ Evidence labels:
 - 2026-10-29: recorded the GitHub username change from `jiuyueqiuu` to `autumnfold` (reported by owner). Updated the repository URL in section 5 and verified the new URL by cloning (Claude Code). The PR #2–#4 merge records in section 11 keep their original commit messages, which still name `jiuyueqiuu`. The owner's local remote update is recorded as unverified in section 10.
 - 2026-10-22 and 2026-10-25 (recorded retrospectively on 2026-11-01): the owner moved the Oct 22 gate to Oct 25, then to Nov 1.
 - 2026-11-01 (Browser Claude, owner-authorised): **rescope.** D12 (load-duration-curve merit-order model, 3 drivers, 2019→2022, sensitivity analysis, 8–10 page report), D13 (novelty not required), D14 (2-hour task rule); D1 narrowed; D2 and D8 superseded; D6 resolved; D10 amended (Browser Claude may push branches and open PRs). Rewrote Sections 1, 3, 4, 6, 9, 10, 11 accordingly; added `docs/literature.md` and `docs/data_feasibility.md`; updated the project description in `CLAUDE.md`.
+- 2026-11-06 (Browser Claude, owner-authorised): **direction change to domestic adequacy.** Recorded check 1 results; D15 (adequacy primary), D16 (two drivers, nuclear and fossil grouped), D17 (metrics), D18 (import wording), D19 (pumped storage), D20 (methodology basis, v6 frozen, section 8.1 removed from the core), D21 (cost attribution secondary), D22 (four institutional sources), D23 (Browser Claude leads the pipeline). D1, D6 and D12 annotated as partly superseded. Rewrote Sections 3, 4, 6, 9 and the open deliverables; updated 10 and 11; added `docs/check_protocol_v6.md`; updated the source list in `docs/literature.md`. The adequacy implementation plan is recorded as Proposed.
