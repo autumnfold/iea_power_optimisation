@@ -211,15 +211,13 @@ Four institutional sources; links and reading method in `docs/literature.md`:
   - curtailment assumed negligible (not verified).
 - **Literature:** RTE's winter 2022–23 analyses located by search on 2026-11-06; their contents have not been read.
 - **IEA applications:** re-check current official eligibility guidance and the education-level requirement for each posting; ask Paris-Saclay about the *convention de stage* process.
-- **GitHub CI:** before 2026-11-06, GitHub Actions status was reported by the owner only. Browser Claude now reads it through the GitHub API (PR #8: section 11). The CI result of the pipeline PR is unverified until its run completes.
+- **GitHub CI:** before 2026-11-06, GitHub Actions status was reported by the owner only. Browser Claude now reads it through the GitHub API (PR #8: section 11). PR #9's CI result (pipeline) is recorded in section 11.
 - **KKT write-up:** v3 exists as PDFs shared in chat (Oct 6); it is not in the repository. Small fixes for the appendix (Jan): "mathematically necessary" → conditional uniqueness; convexity-proof feasibility clause; $(\lambda, -\bar\mu)$ sign convention; slope vs shadow price.
 - **Repository hygiene:** `README.md` and `report/` are missing (`ASSUMPTIONS.md` is added by the pipeline PR). Dependency pins exist in `requirements.txt`; a migration to `pyproject.toml` has not been performed.
 - **November examination dates:** not yet supplied.
 - **Adequacy pipeline (implemented on `feat/adequacy-pipeline`, 2026-11-07):**
   - **not yet run on the real éCO2mix files**: Browser Claude cannot reach the data sites, so there are no real-data results yet;
-  - `tests/test_three_generator.py` (Pyomo) was not run by Browser Claude, because Pyomo is not installable in its sandbox (PyPI blocked); CI runs it;
-  - the new pins (`numpy==2.5.3`, `pandas==3.0.5`, `scipy==1.18.1`) were tested by Browser Claude on Python 3.13 only. Their Requires-Python metadata allows 3.12, but installation on 3.12 is verified only once CI runs;
-  - Browser Claude ran Ruff 0.16.9, not the pinned 0.1.6 (see section 11);
+  - `tests/test_three_generator.py` (Pyomo) could not be run in Browser Claude's sandbox (PyPI blocked). It passed in CI on `c89328b`, where the new pins also installed and the pinned Ruff 0.1.6 passed (section 11);
   - the ENTSO-E reconstruction (v6, section 6) is not built; only its interface (a half-hourly availability CSV) and the downstream checks exist;
   - installed capacities are not sourced, so the lake and pumped-storage power limits use the observed-output proxy, and the installed-fossil cases do not run.
 - **Adequacy results:** the first brackets (check 1) used pessimistic fossil capacity and a fixed or unconstrained hydro treatment; they are exploratory, not results.
@@ -254,7 +252,9 @@ Evidence labels:
   - `ruff check --select E4,E7,E9,F .` (the default rule set of the pinned Ruff 0.1.6, run with Ruff 0.16.9): all checks passed.
   - Plain `ruff check .` with Ruff 0.16.9: only the known `I001` in `src/dispatch.py` (section 7), which does not reproduce under 0.1.6.
 - A full-year synthetic run (two random balanced years of 17,520 half-hours) of `python -m src.adequacy.run` completed in about 4 seconds and wrote the four output files. This was a timing and plumbing check only, not a result.
-- Commit, push and PR for the pipeline are recorded in the PR itself and at the next reconciliation (a file cannot contain its own commit hash).
+- **Committed** `c89328b` on `feat/adequacy-pipeline`. **Pushed:** `origin/feat/adequacy-pipeline` at `c89328b` after `git fetch`. **PR #9** opened against `main`, open and not merged.
+- **CI on `c89328b`** (GitHub Actions `ci`, push run 42309678474 and pull_request run 42309724729): both concluded **success**. The pull_request job log shows `numpy-2.5.3`, `pandas-3.0.5`, `scipy-1.18.1`, `pyomo-6.8.0`, `highspy-1.7.2` and `ruff-0.1.6` installed; `ruff check .` passed; and pytest reported `60 passed` (the 53 adequacy and smoke tests plus the 7 Pyomo tests). The workflow pins Python 3.12.
+- This CI record was added in a follow-up documentation commit on the same branch.
 
 **Reported by owner on 2026-11-06**
 - Approved the adequacy implementation plan with eight clarifications (D24).
@@ -306,7 +306,7 @@ Evidence labels:
 | Deliverable | Owner | Due |
 |---|---|---|
 | ~~Approve (or amend) the adequacy implementation plan~~ | Owner | Done 2026-11-06 (D24) |
-| Adequacy pipeline and tests, PR | Browser Claude | PR opened 2026-11-07 |
+| Adequacy pipeline and tests, PR | Browser Claude | PR #9 opened 2026-11-07; CI success on `c89328b` |
 | Merge PR #8, then review the pipeline PR line by line (start with `docs/adequacy_model.md`) and merge it | Owner | Nov 14 (*Proposed*) |
 | Decide the Test B configuration for fallback data (Section 5, open decisions) | Owner | Before the real-data run |
 | Run `python -m src.adequacy.run` on the two éCO2mix files and share `adequacy_results.json`, or attach the two CSVs for Browser Claude to run | Owner | After the Test B decision |
@@ -363,4 +363,4 @@ Evidence labels:
 - 2026-10-22 and 2026-10-25 (recorded retrospectively on 2026-11-01): the owner moved the Oct 22 gate to Oct 25, then to Nov 1.
 - 2026-11-01 (Browser Claude, owner-authorised): **rescope.** D12 (load-duration-curve merit-order model, 3 drivers, 2019→2022, sensitivity analysis, 8–10 page report), D13 (novelty not required), D14 (2-hour task rule); D1 narrowed; D2 and D8 superseded; D6 resolved; D10 amended (Browser Claude may push branches and open PRs). Rewrote Sections 1, 3, 4, 6, 9, 10, 11 accordingly; added `docs/literature.md` and `docs/data_feasibility.md`; updated the project description in `CLAUDE.md`.
 - 2026-11-06 (Browser Claude, owner-authorised): **direction change to domestic adequacy.** Recorded check 1 results; D15 (adequacy primary), D16 (two drivers, nuclear and fossil grouped), D17 (metrics), D18 (import wording), D19 (pumped storage), D20 (methodology basis, v6 frozen, section 8.1 removed from the core), D21 (cost attribution secondary), D22 (four institutional sources), D23 (Browser Claude leads the pipeline). D1, D6 and D12 annotated as partly superseded. Rewrote Sections 3, 4, 6, 9 and the open deliverables; updated 10 and 11; added `docs/check_protocol_v6.md`; updated the source list in `docs/literature.md`. The adequacy implementation plan is recorded as Proposed.
-- 2026-11-07 (Browser Claude, owner-authorised under D23): **adequacy pipeline.** Recorded D24 (implementation plan approved with eight clarifications). Added `src/adequacy/` (data, inputs, allocation, scenarios, shapley, checks, run), 53 synthetic-data tests, `docs/adequacy_model.md` (specification and function map), `ASSUMPTIONS.md`, `inputs/capacities.csv` (a template), `numpy`, `pandas` and `scipy` pins, and `results/` in `.gitignore`. Updated Sections 3, 4, 5 (D24; the open Test B question; Browser Claude's choices recorded as Proposed), 7, 10 and 11 (PR #8 CI result read through the GitHub API; local test and Ruff results; new deliverables). No real-data result exists yet.
+- 2026-11-07 (Browser Claude, owner-authorised under D23): **adequacy pipeline.** Recorded D24 (implementation plan approved with eight clarifications). Added `src/adequacy/` (data, inputs, allocation, scenarios, shapley, checks, run), 53 synthetic-data tests, `docs/adequacy_model.md` (specification and function map), `ASSUMPTIONS.md`, `inputs/capacities.csv` (a template), `numpy`, `pandas` and `scipy` pins, and `results/` in `.gitignore`. Updated Sections 3, 4, 5 (D24; the open Test B question; Browser Claude's choices recorded as Proposed), 7, 10 and 11 (PR #8 CI result read through the GitHub API; local test and Ruff results; new deliverables). No real-data result exists yet. Committed `c89328b`, pushed, PR #9; a follow-up commit records the CI success of `c89328b` (60 passed, pinned Ruff passed).
