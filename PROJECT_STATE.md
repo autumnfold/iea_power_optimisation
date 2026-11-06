@@ -1,6 +1,6 @@
 # PROJECT_STATE.md
 
-> Canonical source of truth for project status, decisions, open questions, and change history. Last reconciled: 2026-11-06 (direction change to domestic adequacy, D15).
+> Canonical source of truth for project status, decisions, open questions, and change history. Last reconciled: 2026-11-07 (adequacy implementation plan approved, D24; pipeline PR).
 > Evidence labels matter: distinguish local verification, Git history, reports from Browser Claude, and unresolved claims.
 > **Working protocol:** follow the role-specific instructions in Section 12 before starting work.
 
@@ -40,8 +40,9 @@ Land a summer internship at the **International Energy Agency (IEA, Paris)** nex
 
 ### Method
 
-**Direction approved by owner, 2026-11-06. The detailed implementation plan is Proposed until the owner approves it.**
+**Direction approved by owner, 2026-11-06. Implementation plan approved by owner on 2026-11-06 with eight clarifications (D24). Specification and function map: `docs/adequacy_model.md`.**
 
+0. **Scope (D24):** a simplified, deterministic, domestic adequacy assessment. It does not model unit commitment, ramping, operating reserves, internal transmission, interconnector availability, or outage probabilities.
 1. **Closed system (D20):** only domestic generation serves French demand. International exchanges are excluded from all scenarios. Observed exchanges are used only for validation and for comparison with the implied import requirement (D18).
 2. **Net demand, 30-minute step (driver D):**
    $$N_t = C_t - W_t - S_t - R_t - B_t - H^{\text{PS}}_t$$
@@ -50,11 +51,11 @@ Land a summer internship at the **International Energy Agency (IEA, Paris)** nex
    - $H^{\text{PS}}_t$ is the **observed net pumped-storage profile** (`hydraulique_step_turbinage` + `pompage`, where `pompage` ≤ 0), which is the baseline (D19).
 3. **Lakes (driver D):** the monthly observed energy budget, dispatched flexibly within each month up to the lake capacity. This is a proxy for available monthly energy, with no shifting between months (see `docs/check_protocol_v6.md`, section 5.2).
 4. **Conventional generation availability (driver A):** nuclear plus fossil available capacity, per month. The two are **grouped**, and their combined contribution must **not** be read as the isolated effect of nuclear availability (D16).
-5. **Monthly load-duration curves.** Availability uses the monthly mean as baseline, with the lowest daily mean as a conservative stress test.
+5. **Monthly load-duration curves.** Reconstructed availability is summed across technologies at each half-hour, then aggregated: the monthly mean is the baseline, and the lowest daily mean (local calendar days) is a sensitivity. A half-hourly variant applies to A1 and A4 only. The physical-consistency check runs on the raw half-hourly series, before aggregation. Fallback: generation-based **sensitivity cases, not bounds** (D24).
 6. **Metrics (D17):** annual unmet energy (GWh/TWh) and peak shortfall (MW/GW). 2019 is **not** assumed to have zero unmet energy before the results are checked.
 7. **Two drivers, four scenarios** (2019/2022 × 2019/2022), with an exact two-player Shapley attribution. The interaction term is reported explicitly.
-8. **Imports (D18):** the model estimates the **domestic adequacy gap and the implied import requirement under its assumptions**. It does not establish how much of France's historical imports were strictly necessary for security rather than economic reasons.
-9. **Pumped storage (D19):** the observed net profile is the baseline. Flexible generation (observed pumping, monthly generation budget placed freely) is an adequacy sensitivity. The limitations of both are documented.
+8. **Imports (D18):** the model estimates the **domestic adequacy gap and the implied import requirement under its assumptions**. It does not establish how much of France's historical imports were strictly necessary for security rather than economic reasons. The primary comparison is with observed **net** imports (`ech_physiques`, half-hourly), for A1 and A4 (D24).
+9. **Pumped storage (D19):** the observed net profile is the baseline. In the flexible sensitivity, historical pumped-storage generation is **replaced** by a decision variable with the observed monthly budget, placed jointly with lake water, and observed pumping stays at its observed times. The limitations of both are documented in `docs/adequacy_model.md`, section 5.2.
 10. **Checks (D20):** physical-consistency checks (balance closure; availability at least observed generation; hydro capacities at least observed output) replace the chronological Test A. Test B (the 36 GWh tolerance for modelled 2019) applies exactly as pre-registered in `docs/check_protocol_v6.md`, section 8.3.
 11. **Secondary objective (D21):** variable-cost attribution, to be started only after the adequacy results are judged robust and defensible.
 12. **Deliverable:** a **two-page research note** plus the repository. A longer report is optional.
@@ -82,7 +83,7 @@ A clear, reproducible answer to a concrete, policy-relevant question (electricit
     - the balance $C_t = \sum_k P_{k,t} + \text{pompage}_t + \text{ech}_t$ closes with mean absolute residual 0.7 MW (2019) and 66 MW (2022, unresolved).
   - Annual generation totals match RTE within about 0.5 TWh.
   - Consumption is about 2.5 TWh below RTE's totals in both years. Trade differs by 1.7–2.8 TWh. *Hypotheses:* perimeter (Corsica), and physical vs commercial exchanges.
-- **Conventional availability:** an ENTSO-E unit-unavailability reconstruction (method in `docs/check_protocol_v6.md`, section 6), **time-boxed to 2 sessions**. Fallback: monthly brackets (nuclear between the monthly mean and the monthly maximum of observed generation; fossil between the observed maximum and sourced installed capacity).
+- **Conventional availability:** an ENTSO-E unit-unavailability reconstruction (method in `docs/check_protocol_v6.md`, section 6), **time-boxed to 2 sessions**. Fallback: generation-based sensitivity cases (D24). Nuclear is the monthly mean or the monthly maximum of observed generation. Fossil is the sum of each technology's annual maximum observed output, or sourced installed capacity. These are alternative assumptions, **not bounds** on available capacity.
 - **Installed capacities, 2019 and 2022:** lakes, pumped storage (pumping and generating), fossil by technology. Source: RTE annual reports ("parc installé") or ENTSO-E installed capacity by production type. Owner task.
 - **Secondary objective only:**
   - World Bank Pink Sheet monthly prices (natural gas Europe, coal, Brent), CC BY 4.0;
@@ -117,11 +118,20 @@ A clear, reproducible answer to a concrete, policy-relevant question (electricit
 | D21 | Variable-cost attribution is a **secondary objective**, not abandoned; it starts only after the adequacy results are judged robust | Decided by owner, 2026-11-06 |
 | D22 | Literature reduced to four institutional sources, including RTE's winter 2022–23 security-of-supply analysis | Decided by owner, 2026-11-06 |
 | D23 | Browser Claude leads the adequacy pipeline and its tests, on a feature branch through a PR; the owner runs it on the real data, reviews every line and merges | Decided by owner, 2026-11-06 (extends D10) |
+| D24 | **Adequacy implementation plan approved** with eight clarifications: (1) fallback availability cases are sensitivity cases, and their spread is a sensitivity range, not bounds or a confidence interval; (2) monthly mean is the baseline, lowest daily mean and half-hourly are sensitivities, and the raw half-hourly availability check is kept separate from the monthly model; (3) hydro power limits use installed capacity when sourced, otherwise the observed-output proxy, labelled a lower bound; (4) the flexible pumped-storage variant replaces historical generation with a decision variable and keeps observed pumping; (5) observed net imports are the primary import comparison; (6) the model is described as a simplified domestic adequacy assessment; (7) θ is defined by the monthly budget equation, and the unmet-energy and peak claims are tested against independent LPs, with the Oct 6 Shapley example kept as a regression test; (8) the architecture is approved, implemented on a separate branch through a PR. Specification: `docs/adequacy_model.md`. | Decided by owner, 2026-11-06 |
 
 **Open decisions and questions**
-- **Adequacy implementation plan:** Proposed by Browser Claude on 2026-11-06, awaiting owner approval before implementation.
-- Availability source: ENTSO-E reconstruction or the fallback brackets (after the time-boxed attempt).
-- Lake capacity: installed value (to source) or the observed monthly maximum.
+- **Test B configuration on fallback data (owner decision needed before the real-data run):** v6 section 8.3 pre-registers Test B on reconstructed monthly-mean availability. If only the fallback cases exist, which case is Test B? *Proposed (Browser Claude, 2026-11-06):* the case most favourable to domestic supply (nuclear monthly maximum, fossil installed capacity or, until sourced, the observed maximum), because a failure there is informative, whereas the monthly-mean case is expected to fail (2019 nuclear output was reduced for exports).
+- *Proposed (Browser Claude, 2026-11-07), choices made within the approved plan; owner to confirm or reject in the PR review:*
+  - LPs solved with `scipy.optimize.linprog(method="highs")` (the same HiGHS solver) rather than Pyomo, because Pyomo cannot be installed in Browser Claude's sandbox, so Pyomo code could not be run there; this adds a `scipy` pin;
+  - "hours short" reported but labelled as not optimised (it depends on the allocation rule);
+  - the frozen-fossil diagnostic (v6, section 2) included for the generation-based cases under baseline pumped storage;
+  - duplicate timestamps kept and reported, not dropped;
+  - lowest-daily-mean and half-hourly aggregation applied only to reconstructed availability, not to the generation-based cases;
+  - gross imports not reported (what the first plan called gross imports was net imports over net-importing half-hours);
+  - the research figure deferred to a follow-up PR, after the first real-data results are reviewed.
+- Availability source: ENTSO-E reconstruction or the fallback sensitivity cases (after the time-boxed attempt).
+- *Resolved 2026-11-06 (D24):* the adequacy implementation plan; lake capacity (installed value when sourced, otherwise the observed-output proxy, labelled a lower bound).
 - *Proposed (Browser Claude, 2026-11-06), owner to decide:*
   - broaden internship targets beyond the IEA (for example EDF Lab Paris-Saclay, RTE R&D, Paris-Saclay or CentraleSupélec labs, analysis organisations such as Ember);
   - check the IEA's current education-level requirements;
@@ -155,11 +165,11 @@ Repository: `https://github.com/autumnfold/iea_power_optimisation`. GitHub usern
 ## 7. Repo standards
 
 - Work inside the WSL filesystem (`~/projects`), not `/mnt/c`.
-- Tracked layout (verified by Browser Claude on 2026-11-06 at `80a8a44`): `.claude/settings.json`, `.github/workflows/ci.yml`, `.gitignore`, `CLAUDE.md`, `PROJECT_STATE.md`, `pytest.ini`, `requirements.txt`, `docs/literature.md`, `docs/data_feasibility.md`, `src/`, `tests/`. The direction PR adds `docs/check_protocol_v6.md` (frozen, D20).
-- `check_eco2mix.py` (check 1) currently lives outside the repository; the adequacy pipeline will absorb its loading and sign-convention logic, with tests.
-- `README.md`, `ASSUMPTIONS.md`, and `report/` are still missing. Create them when their purposes are reached. `DECISIONS.md` is intentionally not used.
-- `data/` must remain untracked and must never be modified by an agent without explicit owner direction.
-- Current dependency pins in `requirements.txt`: `pyomo==6.8.0`, `highspy==1.7.2`, `pytest==9.1.1`, `ruff==0.1.6`. The CI workflow installs this file, then runs `ruff check .` and `pytest` on Python 3.12. Add `pandas` (pinned) when data loading starts.
+- Tracked layout (verified by Browser Claude on 2026-11-06 at `80a8a44`): `.claude/settings.json`, `.github/workflows/ci.yml`, `.gitignore`, `CLAUDE.md`, `PROJECT_STATE.md`, `pytest.ini`, `requirements.txt`, `docs/literature.md`, `docs/data_feasibility.md`, `src/`, `tests/`. The direction PR (#8) adds `docs/check_protocol_v6.md` (frozen, D20). The pipeline PR adds `src/adequacy/`, `tests/conftest.py`, `tests/test_adequacy_*.py`, `docs/adequacy_model.md`, `ASSUMPTIONS.md` and `inputs/capacities.csv` (a template to fill, with a source for every value).
+- `check_eco2mix.py` (check 1) lives outside the repository. Its loading and sign-convention logic is absorbed, with tests, into `src/adequacy/data.py` (pipeline PR).
+- `README.md` and `report/` are still missing. Create them when their purposes are reached. `ASSUMPTIONS.md` is created by the pipeline PR. `DECISIONS.md` is intentionally not used.
+- `data/` must remain untracked and must never be modified by an agent without explicit owner direction. Pipeline outputs go to `results/`, which is gitignored.
+- Dependency pins in `requirements.txt` after the pipeline PR: `numpy==2.5.3`, `pandas==3.0.5`, `pyomo==6.8.0`, `highspy==1.7.2`, `pytest==9.1.1`, `ruff==0.1.6`, `scipy==1.18.1`. The CI workflow installs this file, then runs `ruff check .` and `pytest` on Python 3.12.
 - Recorded local verification on 2026-10-14: Ruff 0.1.6 (the pinned CI version) passed; `.venv/bin/pytest` reported 8 passed; `git diff --check` passed. The locally installed Ruff 0.16.9 reports an import-formatting finding that does not reproduce under Ruff 0.1.6. Keep the version distinction explicit; do not claim that the two Ruff versions behave identically.
 - `.venv/` is not in the current `git ls-files` output; no tracked virtual environment was found.
 - **Git merges are owner-only.** Claude Code must not commit, push, merge, rebase, reset, revert, cherry-pick, tag, or rewrite Git history, even if asked to do so in a task-level instruction. **Exception (owner, 2026-11-01, D10):** Browser Claude may commit and push to a feature branch and open a PR; it never merges and never rewrites history.
@@ -194,18 +204,24 @@ Four institutional sources; links and reading method in `docs/literature.md`:
 
 - **Data:**
   - the 66 MW systematic balance residual in 2022 (candidate: a battery column not read);
-  - the 2 duplicate timestamps per year;
+  - the 2 duplicate timestamps per year (the pipeline keeps them and reports whether their values are identical; not yet run on the real files);
   - the ~2.5 TWh consumption gap and the trade gap against RTE (hypotheses only);
   - availability data (ENTSO-E fields, thresholds, licence);
   - installed capacities;
   - curtailment assumed negligible (not verified).
 - **Literature:** RTE's winter 2022–23 analyses located by search on 2026-11-06; their contents have not been read.
 - **IEA applications:** re-check current official eligibility guidance and the education-level requirement for each posting; ask Paris-Saclay about the *convention de stage* process.
-- **GitHub CI:** GitHub Actions status has not been independently checked by Claude Code or Browser Claude for any PR; the owner reports it.
+- **GitHub CI:** before 2026-11-06, GitHub Actions status was reported by the owner only. Browser Claude now reads it through the GitHub API (PR #8: section 11). The CI result of the pipeline PR is unverified until its run completes.
 - **KKT write-up:** v3 exists as PDFs shared in chat (Oct 6); it is not in the repository. Small fixes for the appendix (Jan): "mathematically necessary" → conditional uniqueness; convexity-proof feasibility clause; $(\lambda, -\bar\mu)$ sign convention; slope vs shadow price.
-- **Repository hygiene:** `README.md`, `ASSUMPTIONS.md`, and `report/` are missing. Dependency pins exist in `requirements.txt`; a migration to `pyproject.toml` has not been performed.
+- **Repository hygiene:** `README.md` and `report/` are missing (`ASSUMPTIONS.md` is added by the pipeline PR). Dependency pins exist in `requirements.txt`; a migration to `pyproject.toml` has not been performed.
 - **November examination dates:** not yet supplied.
-- **Adequacy pipeline:** not yet implemented (plan Proposed, 2026-11-06).
+- **Adequacy pipeline (implemented on `feat/adequacy-pipeline`, 2026-11-07):**
+  - **not yet run on the real éCO2mix files**: Browser Claude cannot reach the data sites, so there are no real-data results yet;
+  - `tests/test_three_generator.py` (Pyomo) was not run by Browser Claude, because Pyomo is not installable in its sandbox (PyPI blocked); CI runs it;
+  - the new pins (`numpy==2.5.3`, `pandas==3.0.5`, `scipy==1.18.1`) were tested by Browser Claude on Python 3.13 only. Their Requires-Python metadata allows 3.12, but installation on 3.12 is verified only once CI runs;
+  - Browser Claude ran Ruff 0.16.9, not the pinned 0.1.6 (see section 11);
+  - the ENTSO-E reconstruction (v6, section 6) is not built; only its interface (a half-hourly availability CSV) and the downstream checks exist;
+  - installed capacities are not sourced, so the lake and pumped-storage power limits use the observed-output proxy, and the installed-fossil cases do not run.
 - **Adequacy results:** the first brackets (check 1) used pessimistic fossil capacity and a fixed or unconstrained hydro treatment; they are exploratory, not results.
 - **Test design:** `tests/test_three_generator.py::test_raw_pyomo_duals` builds a separate Pyomo model rather than exercising `solve_dispatch()`; it tests raw solver dual signs, but does not independently test the production function's dual extraction. Improve this when scaling the model.
 - **Branch cleanup:** on 2026-10-14, after `git fetch origin`, with `main` and `origin/main` both at `ef72b3c` (verified by Claude Code):
@@ -229,7 +245,19 @@ Evidence labels:
 - **Reported by owner:** stated by the owner in chat.
 - **Unverified:** evidence is not currently available.
 
+**Verified by Browser Claude on 2026-11-07** (own clone; GitHub API through `gh api`)
+- PR #8 (`docs/adequacy-direction`, head `137ea6c`): open, not merged, mergeable state "clean"; GitHub Actions `ci` run on `137ea6c` completed with conclusion **success**. `origin/main` still at `80a8a44`.
+- Adequacy pipeline **implemented locally** on branch `feat/adequacy-pipeline`, created from `docs/adequacy-direction` because it needs PR #8's `PROJECT_STATE.md` and `docs/check_protocol_v6.md`.
+- **Verified locally** (Python 3.13.18, pandas 3.0.5, NumPy 2.5.3, SciPy 1.18.1):
+  - `python -m pytest -q --ignore=tests/test_three_generator.py`: 53 passed. This covers all adequacy tests and the smoke test.
+  - Plain `python -m pytest -q`: collection error in `tests/test_three_generator.py` (`ModuleNotFoundError: No module named 'pyomo'`), a sandbox limitation, not a code change.
+  - `ruff check --select E4,E7,E9,F .` (the default rule set of the pinned Ruff 0.1.6, run with Ruff 0.16.9): all checks passed.
+  - Plain `ruff check .` with Ruff 0.16.9: only the known `I001` in `src/dispatch.py` (section 7), which does not reproduce under 0.1.6.
+- A full-year synthetic run (two random balanced years of 17,520 half-hours) of `python -m src.adequacy.run` completed in about 4 seconds and wrote the four output files. This was a timing and plumbing check only, not a result.
+- Commit, push and PR for the pipeline are recorded in the PR itself and at the next reconciliation (a file cannot contain its own commit hash).
+
 **Reported by owner on 2026-11-06**
+- Approved the adequacy implementation plan with eight clarifications (D24).
 - Ran `check_eco2mix.py` on the éCO2mix national definitive data for 2019 and 2022 and supplied `eco2mix_checks.json`.
 - Approved, through methodology notes v1–v6, the closed-system basis and the check protocol (D20); then the direction change to domestic adequacy (D15–D23).
 
@@ -277,18 +305,21 @@ Evidence labels:
 
 | Deliverable | Owner | Due |
 |---|---|---|
-| Approve (or amend) the adequacy implementation plan | Owner | Before implementation |
-| Adequacy pipeline and tests, PR | Browser Claude | After plan approval |
-| Installed capacities (lakes, pumped storage, fossil by technology; 2019, 2022) | Owner | Nov 22 |
+| ~~Approve (or amend) the adequacy implementation plan~~ | Owner | Done 2026-11-06 (D24) |
+| Adequacy pipeline and tests, PR | Browser Claude | PR opened 2026-11-07 |
+| Merge PR #8, then review the pipeline PR line by line (start with `docs/adequacy_model.md`) and merge it | Owner | Nov 14 (*Proposed*) |
+| Decide the Test B configuration for fallback data (Section 5, open decisions) | Owner | Before the real-data run |
+| Run `python -m src.adequacy.run` on the two éCO2mix files and share `adequacy_results.json`, or attach the two CSVs for Browser Claude to run | Owner | After the Test B decision |
+| Installed capacities (lakes, pumped storage, fossil by technology; 2019, 2022), entered in `inputs/capacities.csv` with sources | Owner | Nov 22 |
 | ENTSO-E attempt (≤ 2 sessions) or decision to use the fallback | Owner | Nov 22 |
 | 2 of the 4 institutional sources read and recorded | Owner | Nov 22 |
-| Headline adequacy result, figure, Test B, physical-consistency report | Both | Dec 6 |
+| Headline adequacy result, figure (follow-up PR, after the first results are reviewed), Test B, physical-consistency report | Both | Dec 6 |
 | Two-page research note | Owner (Browser Claude reviews) | Jan 10 |
 | November exam dates | Owner | As soon as known |
 
 *Superseded on 2026-11-06:* the Nov 7 data-check deliverable (done through check 1), the Nov 15 five-source literature target (replaced by D22), and the cost-model milestones of D12 (moved to the secondary objective, D21).
 
-**Current blockers:** none technical. The schedule depends on the November exam dates.
+**Current blockers:** the first real-data result needs (1) the owner's Test B decision and (2) a run on the owner's éCO2mix files, because Browser Claude cannot reach the data sites. The schedule depends on the November exam dates.
 
 ## 12. Session protocol and roles
 
@@ -332,3 +363,4 @@ Evidence labels:
 - 2026-10-22 and 2026-10-25 (recorded retrospectively on 2026-11-01): the owner moved the Oct 22 gate to Oct 25, then to Nov 1.
 - 2026-11-01 (Browser Claude, owner-authorised): **rescope.** D12 (load-duration-curve merit-order model, 3 drivers, 2019→2022, sensitivity analysis, 8–10 page report), D13 (novelty not required), D14 (2-hour task rule); D1 narrowed; D2 and D8 superseded; D6 resolved; D10 amended (Browser Claude may push branches and open PRs). Rewrote Sections 1, 3, 4, 6, 9, 10, 11 accordingly; added `docs/literature.md` and `docs/data_feasibility.md`; updated the project description in `CLAUDE.md`.
 - 2026-11-06 (Browser Claude, owner-authorised): **direction change to domestic adequacy.** Recorded check 1 results; D15 (adequacy primary), D16 (two drivers, nuclear and fossil grouped), D17 (metrics), D18 (import wording), D19 (pumped storage), D20 (methodology basis, v6 frozen, section 8.1 removed from the core), D21 (cost attribution secondary), D22 (four institutional sources), D23 (Browser Claude leads the pipeline). D1, D6 and D12 annotated as partly superseded. Rewrote Sections 3, 4, 6, 9 and the open deliverables; updated 10 and 11; added `docs/check_protocol_v6.md`; updated the source list in `docs/literature.md`. The adequacy implementation plan is recorded as Proposed.
+- 2026-11-07 (Browser Claude, owner-authorised under D23): **adequacy pipeline.** Recorded D24 (implementation plan approved with eight clarifications). Added `src/adequacy/` (data, inputs, allocation, scenarios, shapley, checks, run), 53 synthetic-data tests, `docs/adequacy_model.md` (specification and function map), `ASSUMPTIONS.md`, `inputs/capacities.csv` (a template), `numpy`, `pandas` and `scipy` pins, and `results/` in `.gitignore`. Updated Sections 3, 4, 5 (D24; the open Test B question; Browser Claude's choices recorded as Proposed), 7, 10 and 11 (PR #8 CI result read through the GitHub API; local test and Ruff results; new deliverables). No real-data result exists yet.
