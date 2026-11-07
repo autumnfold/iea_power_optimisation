@@ -32,10 +32,15 @@ def availability_vs_generation(availability: pd.DataFrame, df: pd.DataFrame) -> 
     eCO2mix generation columns (``nucleaire``, ``gaz``, ``charbon``, ``fioul``), in MW.
     Physically, availability >= generation in every interval. Run this BEFORE any monthly
     aggregation: it checks the reconstructed series itself, not the model.
+
+    Rows flagged ``dst_pass_uncertain`` (the autumn repeated hour) are left out: their UTC
+    instant, and so their matching interval, is not established (D26).
     """
-    merged = df[["ts_utc", "nucleaire", *FOSSIL]].merge(
+    uncertain = df["dst_pass_uncertain"]
+    merged = df.loc[~uncertain, ["ts_utc", "nucleaire", *FOSSIL]].merge(
         availability, on="ts_utc", how="inner", suffixes=("_gen", "_avail"))
-    report = {"matched_half_hours": len(merged), "eco2mix_half_hours": len(df)}
+    report = {"matched_half_hours": len(merged), "eco2mix_half_hours": len(df),
+              "excluded_dst_pass_uncertain": int(uncertain.sum())}
     for tech in ["nucleaire", *FOSSIL]:
         if tech not in availability.columns:
             continue

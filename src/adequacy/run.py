@@ -10,8 +10,10 @@ Options:
     --availability-2022 FILE     columns ts_utc, nucleaire, gaz, charbon, fioul (MW)
     --out DIR                    output folder (default results/, gitignored)
 
-Outputs: ``adequacy_results.json`` (everything), and ``scenarios.csv``,
-``monthly_unmet.csv``, ``shapley.csv`` (the tables the figure will use).
+Outputs: ``adequacy_results.json`` (everything), ``scenarios.csv``,
+``monthly_unmet.csv``, ``shapley.csv`` (the tables the figure will use), and
+``data_audit.csv`` (every observation removed, flagged or missing under the clock-change
+policy, D26).
 Internal units are MW and MWh; outputs are GW and GWh.
 """
 
@@ -30,7 +32,7 @@ from src.adequacy.checks import (
     import_comparison,
     run_test_b,
 )
-from src.adequacy.data import DT_H, completeness, load_year
+from src.adequacy.data import DT_H, audit_rows, completeness, load_year
 from src.adequacy.inputs import (
     AVAILABILITY_TECHNOLOGIES,
     aggregate_availability,
@@ -104,20 +106,28 @@ def shapley_dict(s, scale: float) -> dict:
             "interaction": s.interaction / scale}
 
 
-def run(args: argparse.Namespace) -> dict:
-    years = {2019: load_year(args.y2019, 2019), 2022: load_year(args.y2022, 2022)}
+def load_inputs(args: argparse.Namespace, apply_dst_policy: bool = True):
+    """Load both years (with their loading audits), the capacities and any availability."""
+    loaded = {2019: load_year(args.y2019, 2019, apply_dst_policy),
+              2022: load_year(args.y2022, 2022, apply_dst_policy)}
+    years = {y: df for y, (df, _) in loaded.items()}
+    audits = {y: audit for y, (_, audit) in loaded.items()}
     capacities = load_capacities(args.capacities) if Path(args.capacities).exists() else {}
-    demand = {y: demand_side(df) for y, df in years.items()}
-    lake = hydro_capacity(capacities, years, "lakes", "hydraulique_lacs")
-    ps = hydro_capacity(capacities, years, "pumped_storage_generation", "hydraulique_step_turbinage")
-    lake_cap = {y: v["mw"] for y, v in lake.items()}
-    ps_cap = {y: v["mw"] for y, v in ps.items()}
-
     aligned = None
     if args.availability_2019 and args.availability_2022:
         raw = {2019: load_availability(args.availability_2019),
                2022: load_availability(args.availability_2022)}
         aligned = {y: align_availability(raw[y], years[y]) for y in YEARS}
+    return years, audits, capacities, aligned
+
+
+def analyse(years: dict, capacities: dict, aligned: dict | None):
+    """Every case, pumped-storage variant and scenario: the report and its three tables."""
+    demand = {y: demand_side(df) for y, df in years.items()}
+    lake = hydro_capacity(capacities, years, "lakes", "hydraulique_lacs")
+    ps = hydro_capacity(capacities, years, "pumped_storage_generation", "hydraulique_step_turbinage")
+    lake_cap = {y: v["mw"] for y, v in lake.items()}
+    ps_cap = {y: v["mw"] for y, v in ps.items()}
 
     report: dict = {"data": {}, "hydro_power_limits": {"lakes": lake, "pumped_storage": ps},
                     "checks": {}, "cases": {}, "test_b": [], "import_comparison": {},
@@ -212,12 +222,23 @@ def run(args: argparse.Namespace) -> dict:
         report["sensitivity_range"][f"{kind} | {ps_mode} | {metric}"] = {
             q: {"min": float(group[q].min()), "max": float(group[q].max())}
             for q in ("total", "phi_D", "phi_A", "interaction")}
+    return report, pd.DataFrame(rows), pd.DataFrame(monthly_rows), shapley_table
+
+
+def run(args: argparse.Namespace) -> dict:
+    years, audits, capacities, aligned = load_inputs(args)
+    report, scenarios, monthly, shapley_table = analyse(years, capacities, aligned)
+    for y in YEARS:
+        report["data"][y]["loading_audit"] = audits[y]
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(rows).to_csv(out / "scenarios.csv", index=False, float_format="%.4f")
-    pd.DataFrame(monthly_rows).to_csv(out / "monthly_unmet.csv", index=False, float_format="%.4f")
+    scenarios.to_csv(out / "scenarios.csv", index=False, float_format="%.4f")
+    monthly.to_csv(out / "monthly_unmet.csv", index=False, float_format="%.4f")
     shapley_table.to_csv(out / "shapley.csv", index=False, float_format="%.4f")
+    # Every removed, flagged or missing observation, one per line (D26).
+    pd.DataFrame([r for y in YEARS for r in audit_rows(audits[y], y)]).to_csv(
+        out / "data_audit.csv", index=False)
     # default=str turns dates and other non-JSON values into text instead of failing.
     (out / "adequacy_results.json").write_text(json.dumps(report, indent=2, default=str))
     return report
