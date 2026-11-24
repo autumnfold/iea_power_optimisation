@@ -17,7 +17,7 @@ The Shapley shares decompose the change in **modelled** unmet energy and peak sh
 
 ## 2. Data and notation
 
-Source: éCO2mix national definitive data, ODRÉ CSV export, one file per year (`src/adequacy/data.py`). Each kept row is one observed half-hour, $\Delta t = 0.5$ h. Power is in MW and energy in MWh, and outputs are in GW and GWh. Months and days are Paris local calendar months and days. Duplicate timestamps are **kept** and reported, because each row is a half-hour of observed energy and the model does not depend on the order of half-hours within a month.
+Source: éCO2mix national definitive data, ODRÉ CSV export, one file per year (`src/adequacy/data.py`). The files are only read; the clock-change treatment (section 2.1) is applied in the loader. Each retained row is one measured half-hour, $\Delta t = 0.5$ h. Power is in MW and energy in MWh, and outputs are in GW and GWh. Months and days are Paris local calendar months and days.
 
 | Symbol | Column | Driver |
 |---|---|---|
@@ -31,7 +31,48 @@ Source: éCO2mix national definitive data, ODRÉ CSV export, one file per year (
 | $G^{\text{nuc}}_t$, $G^{\text{gas}}_t$, $G^{\text{coal}}_t$, $G^{\text{oil}}_t$ | `nucleaire`, `gaz`, `charbon`, `fioul` | A, only through the availability cases |
 | $X_t$ | `ech_physiques`: net physical imports, import-positive | none: comparison only |
 
-The loader stops, rather than repairing, if a required column is missing, a value is missing, the time step is not 30 minutes, or `pompage` > 0.
+The loader stops, rather than repairing, if:
+- a required column is missing;
+- a half-hour measurement is missing (it is never dropped silently);
+- a quarter-hour row holds a value;
+- a timestamp disagrees with its Paris label;
+- `pompage` > 0;
+- the measurements do not cover the exact UTC grid (section 2.1).
+
+### 2.1 Clock changes (D26)
+
+**How the files are laid out.**
+- **RTE's format has a fixed number of rows per day.** The éCO2mix specification (V2, October 2012) gives each day 96 quarter-hour rows ("Quelle que soit la nature des informations publiées, le format du fichier est invariant"). Definitive data fill only the half-hours, so every local day has 48 labels (`date`, `heure`). A real spring clock-change day has 46 half-hours and an autumn one has 50, so neither fits.
+- **Spring.** The labels 02:00 and 02:30 do not exist in Paris time. ODRÉ stamps them (`date_heure`) at the 03:00 and 03:30 instants, which already have their own rows. In the owner's files (checked 2026-11-07) all four such rows copy a genuine row of the same night:
+  - 2022: 02:00 and 02:30 copy 03:00 and 03:30;
+  - 2019: 02:00 copies 03:00, but 02:30 copies **01:30**, so it differs from the 03:30 row that shares its instant.
+
+  RTE's own 2011 and 2012 daily files fill the missing hour with copies in the same way. An independent project reports the same ODRÉ pattern for 2023–2025.
+- **Autumn.** The repeated hour (labels 02:00 and 02:30) is given once, so two real half-hours of the 25-hour day have no row. ODRÉ stamps the two rows as the second (winter-time) pass. Which pass was actually measured is not documented.
+
+**Policy, applied in `data.load_year`.**
+1. **Rows whose Paris label does not exist are removed.** They are not measurements. Each one is listed, with the genuine rows it is identical to and the row that shares its instant.
+2. **Rows whose label is repeated in Paris time but appear once are kept unchanged,** values and timestamps, and flagged `dst_pass_uncertain`. Their pass is an explicit uncertainty.
+3. **The half-hours of the repeated hour that have no row are listed as missing.** They are not imputed.
+4. **The remaining measurements must equal the exact UTC grid of the Paris year** (17,520 instants for 2019 and 2022). There is one tolerance: one missing instant inside the repeated autumn hour for each repeated label that appears once. Any other gap, duplicate, off-grid timestamp or label/timestamp disagreement stops the load.
+
+Downstream:
+- the half-hourly availability check (section 7) leaves out the flagged rows;
+- the monthly model is not affected by their timestamp, because it does not depend on the order of half-hours within a month.
+
+**Hypothesis recorded, not established.** In 2019, the series is smooth from 01:30 into the 02:00 row and from the 02:30 row into 03:00. It breaks between 02:00 and 02:30 (consumption −4.4 GW, nuclear −2.0 GW, lakes −1.3 GW, against neighbouring steps of about −0.6 GW). This suggests that the 02:00 row is the **first** pass (00:00 UTC), one hour before its ODRÉ timestamp, and that the 02:30 row is the second pass. A single rule would explain both this and the 2019 spring copies: each label takes the offset in force 30 minutes earlier. That rule does not explain 2022 spring, and the 2022 autumn break falls at an hour boundary under either reading, so 2022 is undetermined. **No timestamp is changed on the strength of this.** The decisive check is ENTSO-E actual total load in UTC for the nights of 26–27 October 2019 and 29–30 October 2022 (PROJECT_STATE.md, section 11).
+
+**Audit.** `load_year` returns, with the data, an audit listing every removed row, flagged row and missing half-hour. `run` writes it to `data_audit.csv`.
+
+**Before-and-after comparison.** `python -m src.adequacy.compare_dst` (the same options as `run`) runs everything twice:
+- once with the spring rows kept, as published (`load_year(..., apply_dst_policy=False)`, which exists for this comparison only);
+- once under the policy.
+
+It writes `dst_comparison.csv` with absolute and relative differences for:
+- annual energies and monthly hydro budgets;
+- $U$, $P$ and hours short per scenario;
+- $U$ per month;
+- the Shapley table.
 
 ## 3. Driver D: net demand and hydro
 
@@ -163,12 +204,19 @@ The interaction $I$ is reported explicitly, and each share equals its solo effec
 
 Physical consistency (D20):
 1. **Balance closure** per year: $C_t - \sum_k G^{k}_t - \text{pompage}_t - X_t$ (mean, mean absolute, maximum absolute, annual TWh).
-2. **Completeness:** rows per month, duplicate timestamps, and whether both years have the same number of rows in each month.
-3. **Availability at least observed generation**, on the **raw half-hourly** reconstructed series, matched on the same UTC interval, before any aggregation, for nuclear and each fossil technology. It reports violating half-hours, violation energy and the largest violation. This checks the reconstruction, not the monthly model. It is not run on the generation-based cases, where it would be true or false by construction.
+2. **Completeness:** the exact-grid validation and the audit of section 2.1, rows per month, and whether both years have the same number of rows in each month.
+3. **Availability at least observed generation**, on the **raw half-hourly** reconstructed series, matched on the same UTC interval, before any aggregation, for nuclear and each fossil technology. It reports violating half-hours, violation energy and the largest violation. Rows flagged `dst_pass_uncertain` are left out and counted, because their interval is not established. This checks the reconstruction, not the monthly model. It is not run on the generation-based cases, where it would be true or false by construction.
 4. **Hydro power limits at least observed output**, for $K^{L}$ and $K^{T}$. For the observed-output proxy this holds by construction.
 5. **Aggregation effect** (reconstructed availability only): A1 and A4 with half-hourly $K_t$, compared with the monthly mean.
 
-**Test B** (v6, section 8.3): A1, flexible pumped storage, $U \le 36$ GWh, a pre-registered convention. The pre-registered configuration uses reconstructed availability with monthly-mean aggregation. Results for every other case are reported with `pre_registered_configuration: false`, as sensitivities. **Open:** which case serves as Test B if only the fallback cases exist. The owner decides before the real-data run.
+**Test B** (v6, section 8.3; D25): A1, flexible pumped storage, reconstructed availability with monthly-mean aggregation, $U \le 36$ GWh, a pre-registered convention.
+- Official Test B is **not evaluated** until reconstructed availability exists.
+- On fallback data, the only exploratory diagnostic is the case most favourable to domestic supply:
+  - nuclear: monthly maximum of observed generation;
+  - fossil: installed capacity once sourced, otherwise the sum of each technology's annual observed maximum.
+
+  It is a sensitivity diagnostic, not a Test B result.
+- *Pending code change:* the output still lists every case under `test_b`, each with `pre_registered_configuration: false`. It should be restricted to the official configuration and this one diagnostic.
 
 ## 8. Comparison with observed net imports (`checks.import_comparison`)
 
@@ -199,12 +247,16 @@ Optional arguments: `--capacities inputs/capacities.csv` (the default path), `--
 | `scenarios.csv` | case, pumped-storage variant, scenario, $U$ (GWh), $P$ (GW), hours short |
 | `monthly_unmet.csv` | the same by month (input for the figure) |
 | `shapley.csv` | $\varphi_D$, $\varphi_A$, $I$ and total for $U$ and $P$, per case and variant |
+| `data_audit.csv` | every removed, flagged or missing observation under the clock-change policy (section 2.1) |
+| `dst_comparison.csv` | written by `python -m src.adequacy.compare_dst`: every quantity before and after the policy, with absolute and relative differences |
 
 ## 10. Function map and what the tests establish
 
 | Equation or rule | Function | Main tests |
 |---|---|---|
 | Loading, conventions, local months | `data.load_year`, `data.completeness` | `test_adequacy_data.py` |
+| Clock-change policy, exact grid, audit | `data.load_year`, `data.audit_rows` | `test_adequacy_dst.py`: spring copies removed (2022 case and the 2019 case where 02:30 copies 01:30); autumn rows kept unchanged and flagged, gap listed, hypothesis recorded only for 2019 02:00; unexpected gap, extra gap in the repeated hour, duplicate, label/timestamp disagreement, missing measurement and quarter-hour value all rejected; source file unchanged |
+| Before and after the policy | `compare_dst.run_comparison` | the change in consumption and lake budget equals the removed rows' energy; only the March budgets change |
 | $N^{\text{base}}$, $N^{\text{flex}}$, $p_t$ | `inputs.demand_side` | baseline net demand = nuclear + fossil + lakes + net imports on balanced data; $N^{\text{flex}} - N^{\text{base}} = g^{\text{obs}}$ |
 | $E^{L}_m$, $E^{T}_m$ | `inputs.monthly_budgets` | MW → MWh by hand |
 | $K_m$ cases, aggregation | `inputs.generation_based_availability`, `inputs.aggregate_availability` | total-first lowest daily mean; days with 46 half-hours |
@@ -214,6 +266,6 @@ Optional arguments: `--capacities inputs/capacities.csv` (the default path), `--
 | Scenario assembly | `scenarios.run_four_scenarios` | each scenario uses the right years; budgets and limits follow the driver-D year; no water moves between months; flexible is never worse than the baseline |
 | Shapley | `shapley.shapley_two_players` | **owner's Oct 6 example: 2000/2500/3200/4200 → $\varphi_D$ = 750, $\varphi_A$ = 1450**; efficiency; solo effect + $I/2$; dummy; symmetry; monthly shares add up to the annual ones |
 | Checks, Test B, imports | `checks.*` | small known inputs |
-| End to end | `run.run` | synthetic files, with and without capacities and reconstructed availability |
+| End to end | `run.run` | synthetic full years in the ODRÉ layout, with and without capacities and reconstructed availability |
 
 All tests use synthetic data. No real data is used in CI.

@@ -1,6 +1,6 @@
 # PROJECT_STATE.md
 
-> Canonical source of truth for project status, decisions, open questions, and change history. Last reconciled: 2026-11-07 (adequacy implementation plan approved, D24; pipeline PR).
+> Canonical source of truth for project status, decisions, open questions, and change history. Last reconciled: 2026-11-07 (Test B decisions, D25; clock-change policy, D26).
 > Evidence labels matter: distinguish local verification, Git history, reports from Browser Claude, and unresolved claims.
 > **Working protocol:** follow the role-specific instructions in Section 12 before starting work.
 
@@ -78,7 +78,7 @@ A clear, reproducible answer to a concrete, policy-relevant question (electricit
 
 - **RTE éCO2mix, national consolidated and definitive data** (ODRÉ / data.gouv.fr): <https://odre.opendatasoft.com/explore/dataset/eco2mix-national-cons-def/>. Licence Ouverte / Open Licence 2.0 (data.gouv.fr page, read by Browser Claude 2026-11-01).
   - **Check 1 results** (owner's run of `check_eco2mix.py`, 2026-11-06; JSON read by Browser Claude):
-    - 30-minute step, 17,520 rows per year, no missing values;
+    - 30-minute step, 17,520 rows per year, no missing values. *Corrected 2026-11-07 (D26):* each year's 17,520 rows include 2 spring rows with non-existent Paris labels that copy genuine rows, and lack 2 real half-hours of the autumn repeated hour. That is why the count looked complete;
     - `pompage` ≤ 0 (−4,036 to −3 MW); `ech_physiques` is import-positive;
     - the balance $C_t = \sum_k P_{k,t} + \text{pompage}_t + \text{ech}_t$ closes with mean absolute residual 0.7 MW (2019) and 66 MW (2022, unresolved).
   - Annual generation totals match RTE within about 0.5 TWh.
@@ -119,17 +119,20 @@ A clear, reproducible answer to a concrete, policy-relevant question (electricit
 | D22 | Literature reduced to four institutional sources, including RTE's winter 2022–23 security-of-supply analysis | Decided by owner, 2026-11-06 |
 | D23 | Browser Claude leads the adequacy pipeline and its tests, on a feature branch through a PR; the owner runs it on the real data, reviews every line and merges | Decided by owner, 2026-11-06 (extends D10) |
 | D24 | **Adequacy implementation plan approved** with eight clarifications: (1) fallback availability cases are sensitivity cases, and their spread is a sensitivity range, not bounds or a confidence interval; (2) monthly mean is the baseline, lowest daily mean and half-hourly are sensitivities, and the raw half-hourly availability check is kept separate from the monthly model; (3) hydro power limits use installed capacity when sourced, otherwise the observed-output proxy, labelled a lower bound; (4) the flexible pumped-storage variant replaces historical generation with a decision variable and keeps observed pumping; (5) observed net imports are the primary import comparison; (6) the model is described as a simplified domestic adequacy assessment; (7) θ is defined by the monthly budget equation, and the unmet-energy and peak claims are tested against independent LPs, with the Oct 6 Shapley example kept as a regression test; (8) the architecture is approved, implemented on a separate branch through a PR. Specification: `docs/adequacy_model.md`. | Decided by owner, 2026-11-06 |
+| D25 | **LP solver and Test B.** (1) SciPy's HiGHS interface (`scipy.optimize.linprog`) is approved for the adequacy LPs. (2) Official Test B stays as pre-registered: A1, flexible pumped storage, reconstructed (ENTSO-E) monthly-mean availability, 36 GWh. (3) It is not evaluated until reconstructed availability exists. (4) The exploratory fallback diagnostic is the case most favourable to domestic supply (nuclear: monthly maximum of observed generation; fossil: installed capacity if sourced, otherwise the sum of each technology's annual observed maximum). It is a sensitivity diagnostic, never a Test B result. | Decided by owner, 2026-11-07 |
+| D26 | **Clock-change (DST) policy**, applied in the loader, with the source CSVs unchanged (`docs/adequacy_model.md`, section 2.1). (1) Rows whose Paris label does not exist (the spring 02:00 and 02:30) are removed and listed. (2) Repeated autumn labels given once are kept with their measurements and timestamps unchanged, and flagged `dst_pass_uncertain`. The hypothesis that 2019's 02:00 row is the first pass is recorded, not treated as established. (3) The missing half-hours of the repeated hour are listed, not imputed. (4) Exact UTC grid validation: any other gap, duplicate or missing measurement stops the load. (5) A before-and-after comparison is reported in full (absolute and relative differences), and its impact is not assumed. (6) The 2022 balance residual stays open, and no measured value is modified to close the balance. Includes regression tests for both transitions, unexpected records and the 2019 spring case. | Decided by owner, 2026-11-07 |
 
 **Open decisions and questions**
-- **Test B configuration on fallback data (owner decision needed before the real-data run):** v6 section 8.3 pre-registers Test B on reconstructed monthly-mean availability. If only the fallback cases exist, which case is Test B? *Proposed (Browser Claude, 2026-11-06):* the case most favourable to domestic supply (nuclear monthly maximum, fossil installed capacity or, until sourced, the observed maximum), because a failure there is informative, whereas the monthly-mean case is expected to fail (2019 nuclear output was reduced for exports).
-- *Proposed (Browser Claude, 2026-11-07), choices made within the approved plan; owner to confirm or reject in the PR review:*
-  - LPs solved with `scipy.optimize.linprog(method="highs")` (the same HiGHS solver) rather than Pyomo, because Pyomo cannot be installed in Browser Claude's sandbox, so Pyomo code could not be run there; this adds a `scipy` pin;
-  - "hours short" reported but labelled as not optimised (it depends on the allocation rule);
-  - the frozen-fossil diagnostic (v6, section 2) included for the generation-based cases under baseline pumped storage;
-  - duplicate timestamps kept and reported, not dropped;
-  - lowest-daily-mean and half-hourly aggregation applied only to reconstructed availability, not to the generation-based cases;
-  - gross imports not reported (what the first plan called gross imports was net imports over net-importing half-hours);
-  - the research figure deferred to a follow-up PR, after the first real-data results are reviewed.
+- *Resolved 2026-11-07 (D25):* the Test B configuration. The *Proposed* recommendation that a fallback case serve as Test B was rejected.
+- *Choices proposed by Browser Claude on 2026-11-07 within the approved plan:*
+  - *approved (D25):* LPs solved with `scipy.optimize.linprog(method="highs")` rather than Pyomo; this adds a `scipy` pin;
+  - *rejected and superseded (D26):* duplicate timestamps kept and reported. The spring duplicates are copies, not distinct observations;
+  - *still to be confirmed or rejected:*
+    - "hours short" reported but labelled as not optimised (it depends on the allocation rule);
+    - the frozen-fossil diagnostic (v6, section 2) included for the generation-based cases under baseline pumped storage;
+    - lowest-daily-mean and half-hourly aggregation applied only to reconstructed availability;
+    - gross imports not reported;
+    - the research figure deferred to a follow-up PR, after the first real-data results are reviewed.
 - Availability source: ENTSO-E reconstruction or the fallback sensitivity cases (after the time-boxed attempt).
 - *Resolved 2026-11-06 (D24):* the adequacy implementation plan; lake capacity (installed value when sourced, otherwise the observed-output proxy, labelled a lower bound).
 - *Proposed (Browser Claude, 2026-11-06), owner to decide:*
@@ -203,8 +206,14 @@ Four institutional sources; links and reading method in `docs/literature.md`:
 ## 10. Unverified / to check
 
 - **Data:**
-  - the 66 MW systematic balance residual in 2022 (candidate: a battery column not read);
-  - the 2 duplicate timestamps per year (the pipeline keeps them and reports whether their values are identical; not yet run on the real files);
+  - the 66 MW systematic balance residual in 2022 (candidate: a battery column not read). **Still open (D26):** no measured value is modified to close the balance;
+  - *resolved 2026-11-07 (D26):* the 2 duplicate timestamps per year are spring rows with non-existent Paris labels that copy genuine rows. The owner verified this read-only on the real files: 2022 copies 03:00 and 03:30; 2019 copies 03:00 and **01:30**;
+  - **autumn repeated hour:**
+    - which pass the two retained rows measure is undocumented;
+    - *hypothesis, not established:* 2019's 02:00 row is the first pass (00:00 UTC, one hour before its ODRÉ timestamp), from series continuity;
+    - 2022 is undetermined;
+    - the decisive check is ENTSO-E actual total load in UTC (section 11, deliverables);
+  - *reported by a third-party project, unconfirmed:* ODRÉ's national half-hours may sit 7–20 minutes late. This is irrelevant at monthly resolution, and no action is taken;
   - the ~2.5 TWh consumption gap and the trade gap against RTE (hypotheses only);
   - availability data (ENTSO-E fields, thresholds, licence);
   - installed capacities;
@@ -220,6 +229,10 @@ Four institutional sources; links and reading method in `docs/literature.md`:
   - `tests/test_three_generator.py` (Pyomo) could not be run in Browser Claude's sandbox (PyPI blocked). It passed in CI on `c89328b`, where the new pins also installed and the pinned Ruff 0.1.6 passed (section 11);
   - the ENTSO-E reconstruction (v6, section 6) is not built; only its interface (a half-hourly availability CSV) and the downstream checks exist;
   - installed capacities are not sourced, so the lake and pumped-storage power limits use the observed-output proxy, and the installed-fossil cases do not run.
+- **Clock-change policy (D26), implemented locally on `fix/dst-loading`, 2026-11-07:**
+  - not yet run on the real files. Two things are unknown until then: whether the real quarter-hour rows are empty in every required column (if not, the loader stops), and whether every regular label agrees with its timestamp;
+  - the before-and-after comparison on real data has not been run (Browser Claude has no access to the files);
+  - pending code change (D25): the output still lists every case under `test_b`, each flagged `pre_registered_configuration: false`. It should be restricted to the official configuration and the one exploratory diagnostic.
 - **Adequacy results:** the first brackets (check 1) used pessimistic fossil capacity and a fixed or unconstrained hydro treatment; they are exploratory, not results.
 - **Test design:** `tests/test_three_generator.py::test_raw_pyomo_duals` builds a separate Pyomo model rather than exercising `solve_dispatch()`; it tests raw solver dual signs, but does not independently test the production function's dual extraction. Improve this when scaling the model.
 - **Branch cleanup:** on 2026-10-14, after `git fetch origin`, with `main` and `origin/main` both at `ef72b3c` (verified by Claude Code):
@@ -242,6 +255,15 @@ Evidence labels:
 - **Verified by Browser Claude:** observed by Browser Claude in its own clone of the public repository, with the date.
 - **Reported by owner:** stated by the owner in chat.
 - **Unverified:** evidence is not currently available.
+
+**Clock-change policy, Browser Claude, 2026-11-07** (own clone)
+- `main` and `origin/main` at `a01974a` (`Merge pull request #9`) after `git fetch`. This confirms the owner's report that PRs #8 and #9 were merged.
+- **Implemented locally** on branch `fix/dst-loading`, created from `a01974a`. Commit, push and a PR against `main` were authorised by the owner on 2026-11-07 (no merge). The commit hash, PR number and CI result are reported in chat and recorded at the next reconciliation, because a file cannot contain its own commit hash.
+- **Verified locally** (Python 3.13.18):
+  - `python -m pytest -q --ignore=tests/test_three_generator.py`: 67 passed, including the new DST tests;
+  - `ruff check --select E4,E7,E9,F .`: all checks passed;
+  - plain `ruff check .` (0.16.9): only the known `I001` in `src/dispatch.py`.
+- **Reported by owner, 2026-11-07:** read-only checks of the real files around both clock changes (2019 and 2022). Their findings are recorded in section 10 and in D26.
 
 **Verified by Browser Claude on 2026-11-07** (own clone; GitHub API through `gh api`)
 - PR #8 (`docs/adequacy-direction`, head `137ea6c`): open, not merged, mergeable state "clean"; GitHub Actions `ci` run on `137ea6c` completed with conclusion **success**. `origin/main` still at `80a8a44`.
@@ -307,11 +329,13 @@ Evidence labels:
 |---|---|---|
 | ~~Approve (or amend) the adequacy implementation plan~~ | Owner | Done 2026-11-06 (D24) |
 | Adequacy pipeline and tests, PR | Browser Claude | PR #9 opened 2026-11-07; CI success on `c89328b` |
-| Merge PR #8, then review the pipeline PR line by line (start with `docs/adequacy_model.md`) and merge it | Owner | Nov 14 (*Proposed*) |
-| Decide the Test B configuration for fallback data (Section 5, open decisions) | Owner | Before the real-data run |
-| Run `python -m src.adequacy.run` on the two éCO2mix files and share `adequacy_results.json`, or attach the two CSVs for Browser Claude to run | Owner | After the Test B decision |
+| ~~Merge PR #8 and PR #9~~ | Owner | Done 2026-11-07 (reported by owner; `a01974a` on `origin/main`, verified by Browser Claude) |
+| ~~Decide the Test B configuration for fallback data~~ | Owner | Done 2026-11-07 (D25) |
+| Clock-change policy (D26): review the `fix/dst-loading` PR and decide whether to merge it | Owner | After the real-data comparison |
+| Run `python -m src.adequacy.compare_dst` and `python -m src.adequacy.run` on the two éCO2mix files and share `dst_comparison.csv`, `data_audit.csv` and `adequacy_results.json`, or attach the two CSVs for Browser Claude to run | Owner | Before deciding on the D26 PR |
+| Restrict the `test_b` output to the official configuration and the one exploratory diagnostic (D25) | Browser Claude | Next small PR |
 | Installed capacities (lakes, pumped storage, fossil by technology; 2019, 2022), entered in `inputs/capacities.csv` with sources | Owner | Nov 22 |
-| ENTSO-E attempt (≤ 2 sessions) or decision to use the fallback | Owner | Nov 22 |
+| ENTSO-E attempt (≤ 2 sessions) or decision to use the fallback. **Also download French actual total load (UTC) for the nights of 26–27 Oct 2019 and 29–30 Oct 2022**, to settle the autumn pass (D26; approved by owner 2026-11-07) | Owner | Nov 22 |
 | 2 of the 4 institutional sources read and recorded | Owner | Nov 22 |
 | Headline adequacy result, figure (follow-up PR, after the first results are reviewed), Test B, physical-consistency report | Both | Dec 6 |
 | Two-page research note | Owner (Browser Claude reviews) | Jan 10 |
@@ -319,7 +343,7 @@ Evidence labels:
 
 *Superseded on 2026-11-06:* the Nov 7 data-check deliverable (done through check 1), the Nov 15 five-source literature target (replaced by D22), and the cost-model milestones of D12 (moved to the secondary objective, D21).
 
-**Current blockers:** the first real-data result needs (1) the owner's Test B decision and (2) a run on the owner's éCO2mix files, because Browser Claude cannot reach the data sites. The schedule depends on the November exam dates.
+**Current blockers:** the first real-data result needs a run of the D26 branch on the owner's éCO2mix files, because Browser Claude cannot reach the data sites. The schedule depends on the November exam dates.
 
 ## 12. Session protocol and roles
 
@@ -364,3 +388,4 @@ Evidence labels:
 - 2026-11-01 (Browser Claude, owner-authorised): **rescope.** D12 (load-duration-curve merit-order model, 3 drivers, 2019→2022, sensitivity analysis, 8–10 page report), D13 (novelty not required), D14 (2-hour task rule); D1 narrowed; D2 and D8 superseded; D6 resolved; D10 amended (Browser Claude may push branches and open PRs). Rewrote Sections 1, 3, 4, 6, 9, 10, 11 accordingly; added `docs/literature.md` and `docs/data_feasibility.md`; updated the project description in `CLAUDE.md`.
 - 2026-11-06 (Browser Claude, owner-authorised): **direction change to domestic adequacy.** Recorded check 1 results; D15 (adequacy primary), D16 (two drivers, nuclear and fossil grouped), D17 (metrics), D18 (import wording), D19 (pumped storage), D20 (methodology basis, v6 frozen, section 8.1 removed from the core), D21 (cost attribution secondary), D22 (four institutional sources), D23 (Browser Claude leads the pipeline). D1, D6 and D12 annotated as partly superseded. Rewrote Sections 3, 4, 6, 9 and the open deliverables; updated 10 and 11; added `docs/check_protocol_v6.md`; updated the source list in `docs/literature.md`. The adequacy implementation plan is recorded as Proposed.
 - 2026-11-07 (Browser Claude, owner-authorised under D23): **adequacy pipeline.** Recorded D24 (implementation plan approved with eight clarifications). Added `src/adequacy/` (data, inputs, allocation, scenarios, shapley, checks, run), 53 synthetic-data tests, `docs/adequacy_model.md` (specification and function map), `ASSUMPTIONS.md`, `inputs/capacities.csv` (a template), `numpy`, `pandas` and `scipy` pins, and `results/` in `.gitignore`. Updated Sections 3, 4, 5 (D24; the open Test B question; Browser Claude's choices recorded as Proposed), 7, 10 and 11 (PR #8 CI result read through the GitHub API; local test and Ruff results; new deliverables). No real-data result exists yet. Committed `c89328b`, pushed, PR #9; a follow-up commit records the CI success of `c89328b` (60 passed, pinned Ruff passed).
+- 2026-11-07 (Browser Claude, owner-authorised): **Test B decisions and clock-change policy.** Recorded D25 (SciPy HiGHS approved; official Test B unchanged and not evaluated until reconstructed availability exists; one exploratory fallback diagnostic) and D26 (clock-change policy, with the owner's six requirements). In Section 5, the open Test B question is resolved, and the "keep duplicates" choice is recorded as rejected. Section 4 corrects check 1's "17,520 rows, complete". Sections 10 and 11 record the resolved duplicates, the autumn uncertainty and the 2019 02:00 hypothesis (not established), the residual kept open, the local verification of the `fix/dst-loading` branch, and new deliverables, including ENTSO-E UTC load for the two autumn nights. Code: `src/adequacy/data.py` (policy, exact-grid validation, audit), `src/adequacy/compare_dst.py` (new), `run.py` (`data_audit.csv`, refactored into `load_inputs` and `analyse`), and `checks.py` (flagged rows left out of the availability check). Tests: `tests/test_adequacy_dst.py` (new); `conftest.py`, `test_adequacy_data.py` and `test_adequacy_run.py` rewritten around full synthetic years in the ODRÉ layout. Docs: `docs/adequacy_model.md` (section 2.1; Test B text per D25). Committed on `fix/dst-loading` with owner authorisation; PR against `main`, not merged.
