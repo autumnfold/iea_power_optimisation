@@ -1,6 +1,6 @@
 # PROJECT_STATE.md
 
-> Canonical source of truth for project status, decisions, open questions, and change history. Last reconciled: 2026-11-07 (Test B decisions, D25; clock-change policy, D26).
+> Canonical source of truth for project status, decisions, open questions, and change history. Last reconciled: 2026-11-26 (first real-data results; PR #10 merged; Test B reporting PR #11; D27).
 > Evidence labels matter: distinguish local verification, Git history, reports from Browser Claude, and unresolved claims.
 > **Working protocol:** follow the role-specific instructions in Section 12 before starting work.
 
@@ -121,8 +121,16 @@ A clear, reproducible answer to a concrete, policy-relevant question (electricit
 | D24 | **Adequacy implementation plan approved** with eight clarifications: (1) fallback availability cases are sensitivity cases, and their spread is a sensitivity range, not bounds or a confidence interval; (2) monthly mean is the baseline, lowest daily mean and half-hourly are sensitivities, and the raw half-hourly availability check is kept separate from the monthly model; (3) hydro power limits use installed capacity when sourced, otherwise the observed-output proxy, labelled a lower bound; (4) the flexible pumped-storage variant replaces historical generation with a decision variable and keeps observed pumping; (5) observed net imports are the primary import comparison; (6) the model is described as a simplified domestic adequacy assessment; (7) θ is defined by the monthly budget equation, and the unmet-energy and peak claims are tested against independent LPs, with the Oct 6 Shapley example kept as a regression test; (8) the architecture is approved, implemented on a separate branch through a PR. Specification: `docs/adequacy_model.md`. | Decided by owner, 2026-11-06 |
 | D25 | **LP solver and Test B.** (1) SciPy's HiGHS interface (`scipy.optimize.linprog`) is approved for the adequacy LPs. (2) Official Test B stays as pre-registered: A1, flexible pumped storage, reconstructed (ENTSO-E) monthly-mean availability, 36 GWh. (3) It is not evaluated until reconstructed availability exists. (4) The exploratory fallback diagnostic is the case most favourable to domestic supply (nuclear: monthly maximum of observed generation; fossil: installed capacity if sourced, otherwise the sum of each technology's annual observed maximum). It is a sensitivity diagnostic, never a Test B result. | Decided by owner, 2026-11-07 |
 | D26 | **Clock-change (DST) policy**, applied in the loader, with the source CSVs unchanged (`docs/adequacy_model.md`, section 2.1). (1) Rows whose Paris label does not exist (the spring 02:00 and 02:30) are removed and listed. (2) Repeated autumn labels given once are kept with their measurements and timestamps unchanged, and flagged `dst_pass_uncertain`. The hypothesis that 2019's 02:00 row is the first pass is recorded, not treated as established. (3) The missing half-hours of the repeated hour are listed, not imputed. (4) Exact UTC grid validation: any other gap, duplicate or missing measurement stops the load. (5) A before-and-after comparison is reported in full (absolute and relative differences), and its impact is not assumed. (6) The 2022 balance residual stays open, and no measured value is modified to close the balance. Includes regression tests for both transitions, unexpected records and the 2019 spring case. | Decided by owner, 2026-11-07 |
+| D27 | **Priorities after the first real-data run.** (1) Research priorities, in order: verified installed capacities by Nov 29; ENTSO-E availability feasibility and reconstruction; RTE's winter 2022–23 analysis, especially its December findings; re-evaluating the counterfactuals once the improved inputs exist. (2) The Test B output is restricted to the official pre-registered configuration, with the exploratory fallback diagnostic kept separately and clearly labelled (implements D25; PR #11). (3) Any sensitivity to the 2022 balance residual (about 66 MW) is a **hypothetical perturbation, not an established correction**, in a PR of its own. | Decided by owner, 2026-11-26 |
 
 **Open decisions and questions**
+- **Exam-proof schedule (Proposed by Browser Claude, 2026-11-24; owner asked on 2026-11-26 to see it again before approving).** Exams are in the week of 14 Dec.
+  - Nov 24–Dec 6: headline result (capacities by Nov 29; ENTSO-E go/no-go; two sources read).
+  - Dec 7–18: project paused for revision and exams.
+  - Dec 19–Jan 10: two-page note and figure.
+  - Jan 10–Feb 1: outreach and applications.
+  - The cost layer (D21) only if the note is finished by Jan 10.
+- **ENTSO-E go/no-go date (Proposed, 2026-11-26): Dec 2.** API access was requested on Nov 26, and ENTSO-E states that access is granted within 3 working days. Without a token by Dec 2, the result is reported with the generation-based sensitivity cases only, and official Test B stays unevaluated.
 - *Resolved 2026-11-07 (D25):* the Test B configuration. The *Proposed* recommendation that a fallback case serve as Test B was rejected.
 - *Choices proposed by Browser Claude on 2026-11-07 within the approved plan:*
   - *approved (D25):* LPs solved with `scipy.optimize.linprog(method="highs")` rather than Pyomo; this adds a `scipy` pin;
@@ -133,7 +141,7 @@ A clear, reproducible answer to a concrete, policy-relevant question (electricit
     - lowest-daily-mean and half-hourly aggregation applied only to reconstructed availability;
     - gross imports not reported;
     - the research figure deferred to a follow-up PR, after the first real-data results are reviewed.
-- Availability source: ENTSO-E reconstruction or the fallback sensitivity cases (after the time-boxed attempt).
+- Availability source: ENTSO-E reconstruction or the fallback sensitivity cases (after the time-boxed attempt; token pending since 2026-11-26).
 - *Resolved 2026-11-06 (D24):* the adequacy implementation plan; lake capacity (installed value when sourced, otherwise the observed-output proxy, labelled a lower bound).
 - *Proposed (Browser Claude, 2026-11-06), owner to decide:*
   - broaden internship targets beyond the IEA (for example EDF Lab Paris-Saclay, RTE R&D, Paris-Saclay or CentraleSupélec labs, analysis organisations such as Ember);
@@ -141,7 +149,7 @@ A clear, reproducible answer to a concrete, policy-relevant question (electricit
   - ask one Paris-Saclay optimisation or operations-research lecturer to review the work once.
 - Secondary objective only: technology grouping, carbon and exchange-rate sources, treatment of unmet energy in a cost attribution.
 - *Resolved 2026-11-06:* one load-duration curve per month (D20); the nuclear availability source follows D20 (ENTSO-E or fallback).
-- November examination dates are needed to adjust the schedule.
+- *Resolved 2026-11-24:* November examination dates. Exams are in the week of 14 Dec (reported by owner).
 - Ask the Paris-Saclay department about the *convention de stage* process.
 - Check the enrolment-level requirement for every IEA posting before applying.
 - `dsh`: decide whether to retain or remove it; do not silently treat it as dropped.
@@ -149,7 +157,7 @@ A clear, reproducible answer to a concrete, policy-relevant question (electricit
 
 Repository: `https://github.com/autumnfold/iea_power_optimisation`. GitHub username changed from `jiuyueqiuu` to `autumnfold`, **reported by owner on 2026-10-29**; new URL verified by Claude Code via clone on 2026-10-29. Local Git history contains the PR #2, PR #3, and PR #4 merge commits. Repository visibility: **public, reported by owner on 2026-09-29**.
 
-## 6. Timeline (rebuilt 2026-11-06 after D15; November exam dates still TBD)
+## 6. Timeline (rebuilt 2026-11-06 after D15; exams in the week of 14 Dec; a revised schedule is Proposed in section 5)
 
 | By | Deliverable | Notes |
 |---|---|---|
@@ -160,6 +168,8 @@ Repository: `https://github.com/autumnfold/iea_power_optimisation`. GitHub usern
 | Dec 7–20 | Secondary objective (cost layer), **only if** the adequacy results are judged robust | |
 | Dec 21–Jan 10 | Two-page research note; README | Holidays |
 | Jan 10–Feb 1 | Outreach and applications | Hard planning deadline Feb 15 |
+
+*Status on 2026-11-26:* of the Nov 7–22 deliverables, the pipeline PR is done and has been run on the real data (Nov 26). The installed capacities, the ENTSO-E attempt and the reading are overdue. The Dec 7–20 row collides with the exams (week of 14 Dec); see the Proposed schedule in section 5.
 
 **History:** the Oct 22 gate was moved to Oct 25, then Nov 1 (owner); on Nov 1 the owner rescoped (D12); on Nov 6 the owner changed the primary objective (D15).
 
@@ -215,25 +225,33 @@ Four institutional sources; links and reading method in `docs/literature.md`:
     - the decisive check is ENTSO-E actual total load in UTC (section 11, deliverables);
   - *reported by a third-party project, unconfirmed:* ODRÉ's national half-hours may sit 7–20 minutes late. This is irrelevant at monthly resolution, and no action is taken;
   - the ~2.5 TWh consumption gap and the trade gap against RTE (hypotheses only);
-  - availability data (ENTSO-E fields, thresholds, licence);
-  - installed capacities;
+  - availability data: ENTSO-E account registered and RESTful API access requested on 2026-11-26 (reported by owner). Token pending; fields, thresholds and licence not yet examined;
+  - installed capacities: not yet sourced. `inputs/capacities.csv` on `main` at `a911009` is still an empty template (verified by Browser Claude, 2026-11-24). Due Nov 29 (D27);
   - curtailment assumed negligible (not verified).
 - **Literature:** RTE's winter 2022–23 analyses located by search on 2026-11-06; their contents have not been read.
 - **IEA applications:** re-check current official eligibility guidance and the education-level requirement for each posting; ask Paris-Saclay about the *convention de stage* process.
 - **GitHub CI:** before 2026-11-06, GitHub Actions status was reported by the owner only. Browser Claude now reads it through the GitHub API (PR #8: section 11). PR #9's CI result (pipeline) is recorded in section 11.
 - **KKT write-up:** v3 exists as PDFs shared in chat (Oct 6); it is not in the repository. Small fixes for the appendix (Jan): "mathematically necessary" → conditional uniqueness; convexity-proof feasibility clause; $(\lambda, -\bar\mu)$ sign convention; slope vs shadow price.
 - **Repository hygiene:** `README.md` and `report/` are missing (`ASSUMPTIONS.md` is added by the pipeline PR). Dependency pins exist in `requirements.txt`; a migration to `pyproject.toml` has not been performed.
-- **November examination dates:** not yet supplied.
+- *Resolved 2026-11-24:* November examination dates. The week of 14 Dec (reported by owner).
 - **Adequacy pipeline (implemented on `feat/adequacy-pipeline`, 2026-11-07):**
-  - **not yet run on the real éCO2mix files**: Browser Claude cannot reach the data sites, so there are no real-data results yet;
+  - run on the real éCO2mix files by the owner on 2026-11-26, after PR #10 (section 11). Browser Claude still cannot reach the data sites;
   - `tests/test_three_generator.py` (Pyomo) could not be run in Browser Claude's sandbox (PyPI blocked). It passed in CI on `c89328b`, where the new pins also installed and the pinned Ruff 0.1.6 passed (section 11);
   - the ENTSO-E reconstruction (v6, section 6) is not built; only its interface (a half-hourly availability CSV) and the downstream checks exist;
   - installed capacities are not sourced, so the lake and pumped-storage power limits use the observed-output proxy, and the installed-fossil cases do not run.
 - **Clock-change policy (D26), implemented locally on `fix/dst-loading`, 2026-11-07:**
-  - not yet run on the real files. Two things are unknown until then: whether the real quarter-hour rows are empty in every required column (if not, the loader stops), and whether every regular label agrees with its timestamp;
-  - the before-and-after comparison on real data has not been run (Browser Claude has no access to the files);
-  - pending code change (D25): the output still lists every case under `test_b`, each flagged `pre_registered_configuration: false`. It should be restricted to the official configuration and the one exploratory diagnostic.
+  - *resolved:* merged as PR #10 (`a911009`). On the real files, the stricter loader accepted both years (quarter-hour rows empty; every regular label agrees with its timestamp), as reported by owner from the comparison run (2026-11-07) and the full run (2026-11-26);
+  - *resolved:* before-and-after comparison run on real data by the owner on 2026-11-07 (section 11);
+  - *in review:* restricting the `test_b` output (D25, D27) is PR #11.
 - **Adequacy results:** the first brackets (check 1) used pessimistic fossil capacity and a fixed or unconstrained hydro treatment; they are exploratory, not results.
+- **First real-data results (2026-11-26) are preliminary,** not headline results (section 11):
+  - availability is a generation-based stand-in (two sensitivity cases), not reconstructed availability;
+  - the hydro power limits are observed-output proxies (lower bounds);
+  - the installed-fossil cases do not run yet;
+  - official Test B is not evaluated.
+- **Peak shortfall under monthly-constant availability:** the availability share of P is 8.17 GW in three of the four combinations. Browser Claude traced this to a numerical coincidence, not a bug and not robustness: P is set by single November and December half-hours, so it largely restates the November–December availability assumption. U is the more informative metric.
+- **Monthly-mean nuclear case:** in this case, 167 GWh of modelled 2022 shortfall exceeds observed net imports at the same half-hours (4 GWh in the monthly-maximum case). Evidence that this case is too pessimistic, but it depends on the water-filling timing rule.
+- **2022 balance residual, rough bound on its effect:** at most about 0.1 GW times the hours short, so up to about 90 GWh (about 4%) in the monthly-mean case and about 36 GWh (about 10%) in the monthly-maximum case for A4. Not computed; a sensitivity PR (D27) would compute it.
 - **Test design:** `tests/test_three_generator.py::test_raw_pyomo_duals` builds a separate Pyomo model rather than exercising `solve_dispatch()`; it tests raw solver dual signs, but does not independently test the production function's dual extraction. Improve this when scaling the model.
 - **Branch cleanup:** on 2026-10-14, after `git fetch origin`, with `main` and `origin/main` both at `ef72b3c` (verified by Claude Code):
   - `git branch -r --merged origin/main` listed `origin/chore/claude-code-config`, `origin/chore/workflow`, `origin/main`, and `origin/model/three-generator-kkt`.
@@ -255,6 +273,52 @@ Evidence labels:
 - **Verified by Browser Claude:** observed by Browser Claude in its own clone of the public repository, with the date.
 - **Reported by owner:** stated by the owner in chat.
 - **Unverified:** evidence is not currently available.
+
+**First real-data results, 2026-11-26**
+- **Verified by Browser Claude (GitHub API, 2026-11-24/26):**
+  - PR #10 merged on 2026-11-24 (merge commit `a911009` on `origin/main`); GitHub Actions push run on `a911009`: success;
+  - `inputs/capacities.csv` on `main` is still an empty template.
+- **Reported by owner, 2026-11-07:** the before-and-after clock-change comparison on the real files. 30 of 332 quantities changed:
+  - consumption −47.5 GWh (2019) and −46.1 GWh (2022), relative −0.010%;
+  - only the March budgets changed: lakes −0.60 and −0.56 GWh; pumped-storage generation −0.04 and −1.86 GWh;
+  - peak shortfall P and hours short unchanged everywhere;
+  - unmet energy U changed by at most −0.10 GWh (≤ 0.004% annual), only in the monthly-mean nuclear case, through the March mean of observed nuclear output;
+  - Shapley shares moved by at most 0.07 GWh.
+- **Reported by owner, 2026-11-26:** `python -m src.adequacy.run` on `a911009` with the real 2019 and 2022 files. `adequacy_results.json`, `scenarios.csv`, `shapley.csv` and `data_audit.csv` were attached in chat (not committed).
+- **Verified by Browser Claude from those outputs, 2026-11-26** (internal consistency, not correctness):
+  - the Shapley identities (efficiency, total = A4 − A1, the interaction formula, monthly shares adding to annual) hold to within 5e-13;
+  - the CSVs match the JSON to rounding;
+  - flexible ≤ baseline, and the monthly-maximum case ≤ the monthly-mean case, in every scenario;
+  - the clock-change audit matches the owner's read-only findings of 2026-11-07.
+- **Data checks:**
+  - 17,518 rows per year (March 1,486; October 1,488);
+  - balance residual: 2019 mean −0.04 MW (max 4 MW); 2022 mean −66.25 MW (max 107 MW; −0.58 TWh), **open**;
+  - hydro power limits are observed-output proxies: lakes 6,900 MW, pumped-storage generation 4,293 MW. Both are reached in 2022.
+
+*Preliminary results* (unmet energy U, GWh; generation-based availability cases; fossil = sum of each technology's observed maximum):
+
+| Nuclear availability | Pumped storage | A1 | A2 | A3 | A4 | Change (A4 − A1) | Demand-and-resource share | Availability share | Interaction |
+|---|---|---|---|---|---|---|---|---|---|
+| monthly mean | baseline | 84.2 | 59.3 | 4,110.9 | 2,393.3 | 2,309.1 | −871.2 | 3,180.4 | −1,692.7 |
+| monthly mean | flexible | 23.5 | 20.5 | 3,593.3 | 1,938.3 | 1,914.8 | −829.0 | 2,743.8 | −1,652.0 |
+| monthly maximum | baseline | 2.1 | 0.0 | 739.2 | 379.8 | 377.7 | −180.7 | 558.5 | −357.4 |
+| monthly maximum | flexible | 0.1 | 0.0 | 336.7 | 101.4 | 101.4 | −117.7 | 219.0 | −235.2 |
+
+- **Consistent in all four combinations:**
+  - U rises from 2019 to 2022;
+  - the availability share is positive and larger than the total change;
+  - the demand-and-resource share is negative over the year, but positive in December (+34 to +873 GWh);
+  - 81–95% of the change falls in December;
+  - the interaction is −0.73 to −2.3 times the total change;
+  - with 2022 availability, 2022 demand and resource conditions lower U by 42–70% compared with 2019 conditions. With 2019 availability the same change moves U by at most 25 GWh.
+- **Not robust:** the magnitude. The change ranges from 0.10 to 2.31 TWh, and 2022 U from 0.10 to 2.39 TWh.
+- **Official Test B: not evaluated (D25).** The exploratory diagnostic (monthly-maximum nuclear, observed-maximum fossil, flexible, A1) gives 0.076 GWh, against the 36 GWh reference. It is not a Test B result.
+- **Imports (D18 wording):**
+  - the modelled 2022 domestic gap (A4: 0.10–2.39 TWh) is about 1–16% of the 14.8 TWh of 2022 net imports;
+  - peak net import 14.6 GW, against a modelled peak shortfall of 6.4–12.2 GW.
+  - This does not show how much import was necessary.
+- **Frozen-fossil diagnostic:** in this stand-in, fossil availability rose by 0.47 GW from 2019 to 2022. Freezing it therefore raises the availability share slightly, so the share is driven by the nuclear statistic in these cases. Installed capacities (coal closures between 2019 and 2022) may reverse the fossil sign.
+- **Test B reporting:** PR #11 (`fix/test-b-reporting`, `aec821f`) was opened by Browser Claude on 2026-11-26 with owner authorisation. It is not merged. Local result: 69 passed (Pyomo tests excluded). Its CI result will be recorded at the next reconciliation.
 
 **Clock-change policy, Browser Claude, 2026-11-07** (own clone)
 - `main` and `origin/main` at `a01974a` (`Merge pull request #9`) after `git fetch`. This confirms the owner's report that PRs #8 and #9 were merged.
@@ -331,19 +395,22 @@ Evidence labels:
 | Adequacy pipeline and tests, PR | Browser Claude | PR #9 opened 2026-11-07; CI success on `c89328b` |
 | ~~Merge PR #8 and PR #9~~ | Owner | Done 2026-11-07 (reported by owner; `a01974a` on `origin/main`, verified by Browser Claude) |
 | ~~Decide the Test B configuration for fallback data~~ | Owner | Done 2026-11-07 (D25) |
-| Clock-change policy (D26): review the `fix/dst-loading` PR and decide whether to merge it | Owner | After the real-data comparison |
-| Run `python -m src.adequacy.compare_dst` and `python -m src.adequacy.run` on the two éCO2mix files and share `dst_comparison.csv`, `data_audit.csv` and `adequacy_results.json`, or attach the two CSVs for Browser Claude to run | Owner | Before deciding on the D26 PR |
-| Restrict the `test_b` output to the official configuration and the one exploratory diagnostic (D25) | Browser Claude | Next small PR |
-| Installed capacities (lakes, pumped storage, fossil by technology; 2019, 2022), entered in `inputs/capacities.csv` with sources | Owner | Nov 22 |
-| ENTSO-E attempt (≤ 2 sessions) or decision to use the fallback. **Also download French actual total load (UTC) for the nights of 26–27 Oct 2019 and 29–30 Oct 2022**, to settle the autumn pass (D26; approved by owner 2026-11-07) | Owner | Nov 22 |
-| 2 of the 4 institutional sources read and recorded | Owner | Nov 22 |
+| ~~Clock-change policy (D26): review and merge PR #10~~ | Owner | Done 2026-11-24 (`a911009`) |
+| ~~Run the clock-change comparison and the full pipeline on the real files~~ | Owner | Done 2026-11-07 and 2026-11-26 |
+| Restrict the `test_b` output to the official configuration and the one exploratory diagnostic (D25, D27) | Browser Claude, then owner review | PR #11 opened 2026-11-26 |
+| 2022 balance-residual sensitivity, as a hypothetical perturbation, in its own PR (D27) | Browser Claude | When the owner authorises it |
+| Approve or amend the exam-proof schedule (section 5) | Owner | Next session |
+| Installed capacities (lakes, pumped storage, fossil by technology; 2019, 2022), entered in `inputs/capacities.csv` with sources | Owner | **Nov 29** (D27; was Nov 22) |
+| ENTSO-E attempt (≤ 2 sessions) or decision to use the fallback. **Also download French actual total load (UTC) for the nights of 26–27 Oct 2019 and 29–30 Oct 2022**, to settle the autumn pass (D26; approved by owner 2026-11-07). Account registered and API access requested on 2026-11-26 | Owner | Go/no-go Dec 2 (*Proposed*) |
+| 2 of the 4 institutional sources read and recorded, starting with RTE's winter 2022–23 analysis and its December findings (D27) | Owner | Overdue (was Nov 22); Dec 6 *Proposed* |
+| Re-evaluate the counterfactuals with the improved inputs (D27) | Both | After the capacities and the ENTSO-E decision |
 | Headline adequacy result, figure (follow-up PR, after the first results are reviewed), Test B, physical-consistency report | Both | Dec 6 |
 | Two-page research note | Owner (Browser Claude reviews) | Jan 10 |
-| November exam dates | Owner | As soon as known |
+| ~~November exam dates~~ | Owner | Done 2026-11-24 (week of 14 Dec) |
 
 *Superseded on 2026-11-06:* the Nov 7 data-check deliverable (done through check 1), the Nov 15 five-source literature target (replaced by D22), and the cost-model milestones of D12 (moved to the secondary objective, D21).
 
-**Current blockers:** the first real-data result needs a run of the D26 branch on the owner's éCO2mix files, because Browser Claude cannot reach the data sites. The schedule depends on the November exam dates.
+**Current blockers:** the preliminary results span a factor of about 20 in magnitude. Narrowing them needs the installed capacities (due Nov 29) and the ENTSO-E decision (token pending). The schedule awaits the owner's approval (section 5).
 
 ## 12. Session protocol and roles
 
@@ -389,3 +456,4 @@ Evidence labels:
 - 2026-11-06 (Browser Claude, owner-authorised): **direction change to domestic adequacy.** Recorded check 1 results; D15 (adequacy primary), D16 (two drivers, nuclear and fossil grouped), D17 (metrics), D18 (import wording), D19 (pumped storage), D20 (methodology basis, v6 frozen, section 8.1 removed from the core), D21 (cost attribution secondary), D22 (four institutional sources), D23 (Browser Claude leads the pipeline). D1, D6 and D12 annotated as partly superseded. Rewrote Sections 3, 4, 6, 9 and the open deliverables; updated 10 and 11; added `docs/check_protocol_v6.md`; updated the source list in `docs/literature.md`. The adequacy implementation plan is recorded as Proposed.
 - 2026-11-07 (Browser Claude, owner-authorised under D23): **adequacy pipeline.** Recorded D24 (implementation plan approved with eight clarifications). Added `src/adequacy/` (data, inputs, allocation, scenarios, shapley, checks, run), 53 synthetic-data tests, `docs/adequacy_model.md` (specification and function map), `ASSUMPTIONS.md`, `inputs/capacities.csv` (a template), `numpy`, `pandas` and `scipy` pins, and `results/` in `.gitignore`. Updated Sections 3, 4, 5 (D24; the open Test B question; Browser Claude's choices recorded as Proposed), 7, 10 and 11 (PR #8 CI result read through the GitHub API; local test and Ruff results; new deliverables). No real-data result exists yet. Committed `c89328b`, pushed, PR #9; a follow-up commit records the CI success of `c89328b` (60 passed, pinned Ruff passed).
 - 2026-11-07 (Browser Claude, owner-authorised): **Test B decisions and clock-change policy.** Recorded D25 (SciPy HiGHS approved; official Test B unchanged and not evaluated until reconstructed availability exists; one exploratory fallback diagnostic) and D26 (clock-change policy, with the owner's six requirements). In Section 5, the open Test B question is resolved, and the "keep duplicates" choice is recorded as rejected. Section 4 corrects check 1's "17,520 rows, complete". Sections 10 and 11 record the resolved duplicates, the autumn uncertainty and the 2019 02:00 hypothesis (not established), the residual kept open, the local verification of the `fix/dst-loading` branch, and new deliverables, including ENTSO-E UTC load for the two autumn nights. Code: `src/adequacy/data.py` (policy, exact-grid validation, audit), `src/adequacy/compare_dst.py` (new), `run.py` (`data_audit.csv`, refactored into `load_inputs` and `analyse`), and `checks.py` (flagged rows left out of the availability check). Tests: `tests/test_adequacy_dst.py` (new); `conftest.py`, `test_adequacy_data.py` and `test_adequacy_run.py` rewritten around full synthetic years in the ODRÉ layout. Docs: `docs/adequacy_model.md` (section 2.1; Test B text per D25). Committed on `fix/dst-loading` with owner authorisation; PR against `main`, not merged.
+- 2026-11-26 (Browser Claude, owner-authorised): **first real-data results recorded.** PR #10 merge (`a911009`) and its CI; the owner's clock-change comparison (2026-11-07) and full pipeline run (2026-11-26); Browser Claude's consistency checks of the outputs; preliminary scenario and Shapley results (December concentration, large interaction, magnitude not robust); outstanding limitations in section 10 (availability stand-ins, hydro proxies, open 2022 residual, peak-metric coincidence). Added D27 (priorities; Test B reporting; residual as a hypothetical perturbation in its own PR). Section 5 gains the exam-proof schedule and the Dec 2 ENTSO-E go/no-go, both Proposed. Exam dates resolved. Deliverables updated (capacities due Nov 29; PR #11 opened). No code changes in this commit.
