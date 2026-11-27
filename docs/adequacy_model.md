@@ -60,7 +60,12 @@ Downstream:
 - the half-hourly availability check (section 7) leaves out the flagged rows;
 - the monthly model is not affected by their timestamp, because it does not depend on the order of half-hours within a month.
 
-**Hypothesis recorded, not established.** In 2019, the series is smooth from 01:30 into the 02:00 row and from the 02:30 row into 03:00. It breaks between 02:00 and 02:30 (consumption −4.4 GW, nuclear −2.0 GW, lakes −1.3 GW, against neighbouring steps of about −0.6 GW). This suggests that the 02:00 row is the **first** pass (00:00 UTC), one hour before its ODRÉ timestamp, and that the 02:30 row is the second pass. A single rule would explain both this and the 2019 spring copies: each label takes the offset in force 30 minutes earlier. That rule does not explain 2022 spring, and the 2022 autumn break falls at an hour boundary under either reading, so 2022 is undetermined. **No timestamp is changed on the strength of this.** The decisive check is ENTSO-E actual total load in UTC for the nights of 26–27 October 2019 and 29–30 October 2022 (PROJECT_STATE.md, section 11).
+**Autumn pass: hypothesis withdrawn, ambiguity not resolved (D29).** A hypothesis that the 2019 02:00 row is the first pass (00:00 UTC) was proposed from series continuity on 2026-11-07. It was withdrawn on 2026-11-27 for lack of evidence. RTE's hourly French load on ENTSO-E (UTC; downloaded by the owner on 2026-11-27) gives the following:
+- **2019:** like éCO2mix, it has **no value for 00:00–01:00 UTC** that night, and one for 01:00–02:00 UTC. So RTE's own UTC data place that night's single repeated hour at the second pass, as the published timestamp does.
+- **2022:** it has both passes. The missing half-hours in éCO2mix come from éCO2mix's 48-rows-per-day format.
+- **The values cannot decide the pass.** ENTSO-E's French load runs 0.7–3.8 GW below éCO2mix consumption at those hours, with an offset that changes from hour to hour, and it is hourly. Neither reading fits clearly.
+
+This **does not prove** that the second-pass placement is physically correct. **The published timestamps are kept, the rows stay flagged `dst_pass_uncertain`, and the question is closed for now** as not resolvable with the public data at hand. It does not affect the results: the monthly model does not depend on the order of half-hours, and the flagged rows are left out of the half-hourly availability check.
 
 **Audit.** `load_year` returns, with the data, an audit listing every removed row, flagged row and missing half-hour. `run` writes it to `data_audit.csv`.
 
@@ -257,7 +262,7 @@ Optional arguments: `--capacities inputs/capacities.csv` (the default path), `--
 | Equation or rule | Function | Main tests |
 |---|---|---|
 | Loading, conventions, local months | `data.load_year`, `data.completeness` | `test_adequacy_data.py` |
-| Clock-change policy, exact grid, audit | `data.load_year`, `data.audit_rows` | `test_adequacy_dst.py`: spring copies removed (2022 case and the 2019 case where 02:30 copies 01:30); autumn rows kept unchanged and flagged, gap listed, hypothesis recorded only for 2019 02:00; unexpected gap, extra gap in the repeated hour, duplicate, label/timestamp disagreement, missing measurement and quarter-hour value all rejected; source file unchanged |
+| Clock-change policy, exact grid, audit | `data.load_year`, `data.audit_rows` | `test_adequacy_dst.py`: spring copies removed (2022 case and the 2019 case where 02:30 copies 01:30); autumn rows kept unchanged and flagged, gap listed, withdrawn-hypothesis note recorded only for 2019 02:00; unexpected gap, extra gap in the repeated hour, duplicate, label/timestamp disagreement, missing measurement and quarter-hour value all rejected; source file unchanged |
 | Before and after the policy | `compare_dst.run_comparison` | the change in consumption and lake budget equals the removed rows' energy; only the March budgets change |
 | $N^{\text{base}}$, $N^{\text{flex}}$, $p_t$ | `inputs.demand_side` | baseline net demand = nuclear + fossil + lakes + net imports on balanced data; $N^{\text{flex}} - N^{\text{base}} = g^{\text{obs}}$ |
 | $E^{L}_m$, $E^{T}_m$ | `inputs.monthly_budgets` | MW → MWh by hand |

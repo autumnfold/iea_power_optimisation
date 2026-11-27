@@ -1,6 +1,6 @@
 # PROJECT_STATE.md
 
-> Canonical source of truth for project status, decisions, open questions, and change history. Last reconciled: 2026-11-26 (first real-data results; PR #10 merged; Test B reporting PR #11; D27).
+> Canonical source of truth for project status, decisions, open questions, and change history. Last reconciled: 2026-11-27 (schedule approved, D28; autumn-pass hypothesis withdrawn, D29; PR #11 merged; ENTSO-E access; PR #13).
 > Evidence labels matter: distinguish local verification, Git history, reports from Browser Claude, and unresolved claims.
 > **Working protocol:** follow the role-specific instructions in Section 12 before starting work.
 
@@ -120,17 +120,14 @@ A clear, reproducible answer to a concrete, policy-relevant question (electricit
 | D23 | Browser Claude leads the adequacy pipeline and its tests, on a feature branch through a PR; the owner runs it on the real data, reviews every line and merges | Decided by owner, 2026-11-06 (extends D10) |
 | D24 | **Adequacy implementation plan approved** with eight clarifications: (1) fallback availability cases are sensitivity cases, and their spread is a sensitivity range, not bounds or a confidence interval; (2) monthly mean is the baseline, lowest daily mean and half-hourly are sensitivities, and the raw half-hourly availability check is kept separate from the monthly model; (3) hydro power limits use installed capacity when sourced, otherwise the observed-output proxy, labelled a lower bound; (4) the flexible pumped-storage variant replaces historical generation with a decision variable and keeps observed pumping; (5) observed net imports are the primary import comparison; (6) the model is described as a simplified domestic adequacy assessment; (7) θ is defined by the monthly budget equation, and the unmet-energy and peak claims are tested against independent LPs, with the Oct 6 Shapley example kept as a regression test; (8) the architecture is approved, implemented on a separate branch through a PR. Specification: `docs/adequacy_model.md`. | Decided by owner, 2026-11-06 |
 | D25 | **LP solver and Test B.** (1) SciPy's HiGHS interface (`scipy.optimize.linprog`) is approved for the adequacy LPs. (2) Official Test B stays as pre-registered: A1, flexible pumped storage, reconstructed (ENTSO-E) monthly-mean availability, 36 GWh. (3) It is not evaluated until reconstructed availability exists. (4) The exploratory fallback diagnostic is the case most favourable to domestic supply (nuclear: monthly maximum of observed generation; fossil: installed capacity if sourced, otherwise the sum of each technology's annual observed maximum). It is a sensitivity diagnostic, never a Test B result. | Decided by owner, 2026-11-07 |
-| D26 | **Clock-change (DST) policy**, applied in the loader, with the source CSVs unchanged (`docs/adequacy_model.md`, section 2.1). (1) Rows whose Paris label does not exist (the spring 02:00 and 02:30) are removed and listed. (2) Repeated autumn labels given once are kept with their measurements and timestamps unchanged, and flagged `dst_pass_uncertain`. The hypothesis that 2019's 02:00 row is the first pass is recorded, not treated as established. (3) The missing half-hours of the repeated hour are listed, not imputed. (4) Exact UTC grid validation: any other gap, duplicate or missing measurement stops the load. (5) A before-and-after comparison is reported in full (absolute and relative differences), and its impact is not assumed. (6) The 2022 balance residual stays open, and no measured value is modified to close the balance. Includes regression tests for both transitions, unexpected records and the 2019 spring case. | Decided by owner, 2026-11-07 |
+| D26 | **Clock-change (DST) policy**, applied in the loader, with the source CSVs unchanged (`docs/adequacy_model.md`, section 2.1). (1) Rows whose Paris label does not exist (the spring 02:00 and 02:30) are removed and listed. (2) Repeated autumn labels given once are kept with their measurements and timestamps unchanged, and flagged `dst_pass_uncertain`. The hypothesis that 2019's 02:00 row is the first pass is recorded, not treated as established (*withdrawn 2026-11-27, D29*). (3) The missing half-hours of the repeated hour are listed, not imputed. (4) Exact UTC grid validation: any other gap, duplicate or missing measurement stops the load. (5) A before-and-after comparison is reported in full (absolute and relative differences), and its impact is not assumed. (6) The 2022 balance residual stays open, and no measured value is modified to close the balance. Includes regression tests for both transitions, unexpected records and the 2019 spring case. | Decided by owner, 2026-11-07 |
+| D28 | **Exam-proof schedule approved.** Exams are in the week of 14 Dec. Nov 24–Dec 6: headline result (capacities by Nov 29; ENTSO-E feasibility with a go/no-go on Dec 2; two sources read; rerun; preliminary result frozen). Dec 7–18: project paused for revision and exams, with nothing asked of the owner. Dec 19–Jan 10: two-page note and figure. Jan 10–Feb 1: outreach and applications. The cost layer (D21) only if the note is finished by Jan 10. **If anything slips, it is cut, not moved into Dec 7–18.** | Decided by owner, 2026-11-27 |
+| D29 | **Autumn repeated hour: hypothesis withdrawn, ambiguity not resolved.** The hypothesis that the 2019 02:00 row is the first pass is withdrawn for insufficient evidence. Withdrawing it is not a proof that the second-pass placement is physically correct. The published timestamps are retained, the rows stay flagged `dst_pass_uncertain`, the uncertainty stays documented (`docs/adequacy_model.md`, section 2.1; the audit's `pass_note`), and the investigation is closed for now. Partly supersedes D26 (2). | Decided by owner, 2026-11-27 |
 | D27 | **Priorities after the first real-data run.** (1) Research priorities, in order: verified installed capacities by Nov 29; ENTSO-E availability feasibility and reconstruction; RTE's winter 2022–23 analysis, especially its December findings; re-evaluating the counterfactuals once the improved inputs exist. (2) The Test B output is restricted to the official pre-registered configuration, with the exploratory fallback diagnostic kept separately and clearly labelled (implements D25; PR #11). (3) Any sensitivity to the 2022 balance residual (about 66 MW) is a **hypothetical perturbation, not an established correction**, in a PR of its own. | Decided by owner, 2026-11-26 |
 
 **Open decisions and questions**
-- **Exam-proof schedule (Proposed by Browser Claude, 2026-11-24; owner asked on 2026-11-26 to see it again before approving).** Exams are in the week of 14 Dec.
-  - Nov 24–Dec 6: headline result (capacities by Nov 29; ENTSO-E go/no-go; two sources read).
-  - Dec 7–18: project paused for revision and exams.
-  - Dec 19–Jan 10: two-page note and figure.
-  - Jan 10–Feb 1: outreach and applications.
-  - The cost layer (D21) only if the note is finished by Jan 10.
-- **ENTSO-E go/no-go date (Proposed, 2026-11-26): Dec 2.** API access was requested on Nov 26, and ENTSO-E states that access is granted within 3 working days. Without a token by Dec 2, the result is reported with the generation-based sensitivity cases only, and official Test B stays unevaluated.
+- *Resolved 2026-11-27 (D28):* the exam-proof schedule.
+- **ENTSO-E go/no-go on Dec 2 (part of the approved schedule, D28).** API access was granted on 2026-11-27, so the question is no longer the token but **feasibility**: can availability be rebuilt credibly from the outage records within two sessions (Nov 30 and Dec 1–2)? If not, the result is reported with the generation-based sensitivity cases only, and official Test B stays unevaluated.
 - *Resolved 2026-11-07 (D25):* the Test B configuration. The *Proposed* recommendation that a fallback case serve as Test B was rejected.
 - *Choices proposed by Browser Claude on 2026-11-07 within the approved plan:*
   - *approved (D25):* LPs solved with `scipy.optimize.linprog(method="highs")` rather than Pyomo; this adds a `scipy` pin;
@@ -157,19 +154,22 @@ A clear, reproducible answer to a concrete, policy-relevant question (electricit
 
 Repository: `https://github.com/autumnfold/iea_power_optimisation`. GitHub username changed from `jiuyueqiuu` to `autumnfold`, **reported by owner on 2026-10-29**; new URL verified by Claude Code via clone on 2026-10-29. Local Git history contains the PR #2, PR #3, and PR #4 merge commits. Repository visibility: **public, reported by owner on 2026-09-29**.
 
-## 6. Timeline (rebuilt 2026-11-06 after D15; exams in the week of 14 Dec; a revised schedule is Proposed in section 5)
+## 6. Timeline (rebuilt 2026-11-06 after D15; revised 2026-11-27 for the exams, D28)
 
 | By | Deliverable | Notes |
 |---|---|---|
 | Sep 29–Oct 13 | Repository, CI, three-generator dispatch/KKT model and tests | Done (PR #2, #3) |
 | Nov 6 | Check 1 (balance, sign conventions, first adequacy brackets); methodology notes v1–v6; direction change (D15) | Done |
 | **Nov 7–22** | Installed capacities found; ENTSO-E attempt (≤ 2 sessions) or fallback; adequacy pipeline PR (Browser Claude) reviewed and run on real data; 2 of the 4 institutional sources read | Exams may fall here |
-| **Nov 23–Dec 6** | **Headline result:** four scenarios, two-driver Shapley with interaction, ranges across variants, one figure; physical-consistency report; Test B | |
-| Dec 7–20 | Secondary objective (cost layer), **only if** the adequacy results are judged robust | |
-| Dec 21–Jan 10 | Two-page research note; README | Holidays |
+| **Nov 24–Dec 6** | **Headline result:** capacities (Nov 29); ENTSO-E feasibility (Nov 30, Dec 1–2; go/no-go Dec 2); RTE's winter analysis; rerun; preliminary result frozen | D28 |
+| **Dec 7–18** | **Paused: revision and exams** (week of 14 Dec). Nothing asked of the owner | D28 |
+| Dec 19–Jan 10 | Two-page research note and figure (Browser Claude drafts the figure); README | D28; holidays |
 | Jan 10–Feb 1 | Outreach and applications | Hard planning deadline Feb 15 |
+| *Conditional* | Secondary objective (cost layer), **only if** the note is finished by Jan 10 | D21, D28 |
 
-*Status on 2026-11-26:* of the Nov 7–22 deliverables, the pipeline PR is done and has been run on the real data (Nov 26). The installed capacities, the ENTSO-E attempt and the reading are overdue. The Dec 7–20 row collides with the exams (week of 14 Dec); see the Proposed schedule in section 5.
+**Rule (D28):** if anything slips, it is cut, not moved into Dec 7–18.
+
+*Status on 2026-11-26:* of the Nov 7–22 deliverables, the pipeline PR is done and has been run on the real data (Nov 26). The installed capacities, the ENTSO-E attempt and the reading are overdue. The schedule was revised and approved on 2026-11-27 (D28).
 
 **History:** the Oct 22 gate was moved to Oct 25, then Nov 1 (owner); on Nov 1 the owner rescoped (D12); on Nov 6 the owner changed the primary objective (D15).
 
@@ -218,14 +218,14 @@ Four institutional sources; links and reading method in `docs/literature.md`:
 - **Data:**
   - the 66 MW systematic balance residual in 2022 (candidate: a battery column not read). **Still open (D26):** no measured value is modified to close the balance;
   - *resolved 2026-11-07 (D26):* the 2 duplicate timestamps per year are spring rows with non-existent Paris labels that copy genuine rows. The owner verified this read-only on the real files: 2022 copies 03:00 and 03:30; 2019 copies 03:00 and **01:30**;
-  - **autumn repeated hour:**
-    - which pass the two retained rows measure is undocumented;
-    - *hypothesis, not established:* 2019's 02:00 row is the first pass (00:00 UTC, one hour before its ODRÉ timestamp), from series continuity;
-    - 2022 is undetermined;
-    - the decisive check is ENTSO-E actual total load in UTC (section 11, deliverables);
+  - **autumn repeated hour: still unresolved; investigation closed for now (D29):**
+    - which pass the two retained rows measure is undocumented, and it is not established by the data;
+    - *withdrawn 2026-11-27:* the hypothesis that 2019's 02:00 row is the first pass. RTE's hourly UTC load on ENTSO-E has no value for 00:00–01:00 UTC on 27 Oct 2019, consistent with the published (second-pass) timestamp. This does not prove the placement is physically correct;
+    - ENTSO-E's French load runs 0.7–3.8 GW below éCO2mix consumption at those hours and is hourly, so it cannot decide the pass from values; in 2022 it has both passes;
+    - no effect on the results (monthly model order-free; flagged rows left out of the half-hourly check);
   - *reported by a third-party project, unconfirmed:* ODRÉ's national half-hours may sit 7–20 minutes late. This is irrelevant at monthly resolution, and no action is taken;
   - the ~2.5 TWh consumption gap and the trade gap against RTE (hypotheses only);
-  - availability data: ENTSO-E account registered and RESTful API access requested on 2026-11-26 (reported by owner). Token pending; fields, thresholds and licence not yet examined;
+  - availability data: ENTSO-E RESTful API access granted on 2026-11-27 (reported by owner, Transparency Platform email). Token tested by the owner with two downloads of actual total load (valid documents). Outage fields, thresholds and licence not yet examined. **ENTSO-E and éCO2mix define French load differently** (0.7–3.8 GW apart at night), so cross-source checks may fail for definitional reasons;
   - installed capacities: not yet sourced. `inputs/capacities.csv` on `main` at `a911009` is still an empty template (verified by Browser Claude, 2026-11-24). Due Nov 29 (D27);
   - curtailment assumed negligible (not verified).
 - **Literature:** RTE's winter 2022–23 analyses located by search on 2026-11-06; their contents have not been read.
@@ -274,6 +274,22 @@ Evidence labels:
 - **Reported by owner:** stated by the owner in chat.
 - **Unverified:** evidence is not currently available.
 
+**Schedule, ENTSO-E access and the autumn hour, 2026-11-27**
+- **Verified by Browser Claude (GitHub API):**
+  - PR #12 merged (`d9cda96`);
+  - PR #11 merged on 2026-11-27 (`2258eab`). CI succeeded on its head `aec821f` (pull_request and push runs) and on `main` at `2258eab` (push run).
+- **Reported by owner:**
+  - the schedule was approved (D28);
+  - ENTSO-E RESTful API access was granted on 2026-11-27;
+  - actual total load (A65/A16, France) was downloaded for 22:00–04:00 UTC on 26–27 Oct 2019 and 29–30 Oct 2022, and the files were attached in chat (not committed).
+- **Read by Browser Claude from those files:**
+  - 2019 has hourly values except 00:00–01:00 UTC;
+  - 2022 has all six hours;
+  - the outcome is D29 (hypothesis withdrawn, ambiguity not resolved).
+- **ENTSO-E raw download script:** PR #13 (`feat/entsoe-download`, `2e22b18`), opened by Browser Claude on 2026-11-27 with owner authorisation; not merged.
+  - Local: 81 passed (Pyomo tests excluded); `ruff check --select E4,E7,E9,F .` passed.
+  - Not yet run against the real API: ENTSO-E is not reachable from Browser Claude's sandbox.
+
 **First real-data results, 2026-11-26**
 - **Verified by Browser Claude (GitHub API, 2026-11-24/26):**
   - PR #10 merged on 2026-11-24 (merge commit `a911009` on `origin/main`); GitHub Actions push run on `a911009`: success;
@@ -318,7 +334,7 @@ Evidence labels:
   - peak net import 14.6 GW, against a modelled peak shortfall of 6.4–12.2 GW.
   - This does not show how much import was necessary.
 - **Frozen-fossil diagnostic:** in this stand-in, fossil availability rose by 0.47 GW from 2019 to 2022. Freezing it therefore raises the availability share slightly, so the share is driven by the nuclear statistic in these cases. Installed capacities (coal closures between 2019 and 2022) may reverse the fossil sign.
-- **Test B reporting:** PR #11 (`fix/test-b-reporting`, `aec821f`) was opened by Browser Claude on 2026-11-26 with owner authorisation. It is not merged. Local result: 69 passed (Pyomo tests excluded). Its CI result will be recorded at the next reconciliation.
+- **Test B reporting:** PR #11 (`fix/test-b-reporting`, `aec821f`) was opened by Browser Claude on 2026-11-26 with owner authorisation. Local result: 69 passed (Pyomo tests excluded). *Merged 2026-11-27 (`2258eab`); CI success (see above).*
 
 **Clock-change policy, Browser Claude, 2026-11-07** (own clone)
 - `main` and `origin/main` at `a01974a` (`Merge pull request #9`) after `git fetch`. This confirms the owner's report that PRs #8 and #9 were merged.
@@ -397,12 +413,13 @@ Evidence labels:
 | ~~Decide the Test B configuration for fallback data~~ | Owner | Done 2026-11-07 (D25) |
 | ~~Clock-change policy (D26): review and merge PR #10~~ | Owner | Done 2026-11-24 (`a911009`) |
 | ~~Run the clock-change comparison and the full pipeline on the real files~~ | Owner | Done 2026-11-07 and 2026-11-26 |
-| Restrict the `test_b` output to the official configuration and the one exploratory diagnostic (D25, D27) | Browser Claude, then owner review | PR #11 opened 2026-11-26 |
+| ~~Restrict the `test_b` output to the official configuration and the one exploratory diagnostic (D25, D27)~~ | Browser Claude, then owner review | Done: PR #11 merged 2026-11-27 (`2258eab`) |
 | 2022 balance-residual sensitivity, as a hypothetical perturbation, in its own PR (D27) | Browser Claude | When the owner authorises it |
-| Approve or amend the exam-proof schedule (section 5) | Owner | Next session |
+| ~~Approve or amend the exam-proof schedule~~ | Owner | Done 2026-11-27 (D28) |
+| Review PR #13 (ENTSO-E raw download script) and merge it | Owner | Before the Nov 30 session |
 | Installed capacities (lakes, pumped storage, fossil by technology; 2019, 2022), entered in `inputs/capacities.csv` with sources | Owner | **Nov 29** (D27; was Nov 22) |
-| ENTSO-E attempt (≤ 2 sessions) or decision to use the fallback. **Also download French actual total load (UTC) for the nights of 26–27 Oct 2019 and 29–30 Oct 2022**, to settle the autumn pass (D26; approved by owner 2026-11-07). Account registered and API access requested on 2026-11-26 | Owner | Go/no-go Dec 2 (*Proposed*) |
-| 2 of the 4 institutional sources read and recorded, starting with RTE's winter 2022–23 analysis and its December findings (D27) | Owner | Overdue (was Nov 22); Dec 6 *Proposed* |
+| ENTSO-E feasibility (≤ 2 sessions: Nov 30, Dec 1–2): download outages and unit lists with PR #13; Browser Claude writes the parser and the reconstruction from the real fields. *The autumn-night load download is done (2026-11-27; D29).* | Owner (downloads), Browser Claude (code) | **Go/no-go Dec 2** (D28) |
+| 2 of the 4 institutional sources read and recorded, starting with RTE's winter 2022–23 analysis and its December findings (D27) | Owner | Dec 6 (D28; was Nov 22) |
 | Re-evaluate the counterfactuals with the improved inputs (D27) | Both | After the capacities and the ENTSO-E decision |
 | Headline adequacy result, figure (follow-up PR, after the first results are reviewed), Test B, physical-consistency report | Both | Dec 6 |
 | Two-page research note | Owner (Browser Claude reviews) | Jan 10 |
@@ -410,7 +427,7 @@ Evidence labels:
 
 *Superseded on 2026-11-06:* the Nov 7 data-check deliverable (done through check 1), the Nov 15 five-source literature target (replaced by D22), and the cost-model milestones of D12 (moved to the secondary objective, D21).
 
-**Current blockers:** the preliminary results span a factor of about 20 in magnitude. Narrowing them needs the installed capacities (due Nov 29) and the ENTSO-E decision (token pending). The schedule awaits the owner's approval (section 5).
+**Current blockers:** the preliminary results span a factor of about 20 in magnitude. Narrowing them needs the installed capacities (due Nov 29) and the ENTSO-E feasibility work (go/no-go Dec 2, D28).
 
 ## 12. Session protocol and roles
 
@@ -457,3 +474,4 @@ Evidence labels:
 - 2026-11-07 (Browser Claude, owner-authorised under D23): **adequacy pipeline.** Recorded D24 (implementation plan approved with eight clarifications). Added `src/adequacy/` (data, inputs, allocation, scenarios, shapley, checks, run), 53 synthetic-data tests, `docs/adequacy_model.md` (specification and function map), `ASSUMPTIONS.md`, `inputs/capacities.csv` (a template), `numpy`, `pandas` and `scipy` pins, and `results/` in `.gitignore`. Updated Sections 3, 4, 5 (D24; the open Test B question; Browser Claude's choices recorded as Proposed), 7, 10 and 11 (PR #8 CI result read through the GitHub API; local test and Ruff results; new deliverables). No real-data result exists yet. Committed `c89328b`, pushed, PR #9; a follow-up commit records the CI success of `c89328b` (60 passed, pinned Ruff passed).
 - 2026-11-07 (Browser Claude, owner-authorised): **Test B decisions and clock-change policy.** Recorded D25 (SciPy HiGHS approved; official Test B unchanged and not evaluated until reconstructed availability exists; one exploratory fallback diagnostic) and D26 (clock-change policy, with the owner's six requirements). In Section 5, the open Test B question is resolved, and the "keep duplicates" choice is recorded as rejected. Section 4 corrects check 1's "17,520 rows, complete". Sections 10 and 11 record the resolved duplicates, the autumn uncertainty and the 2019 02:00 hypothesis (not established), the residual kept open, the local verification of the `fix/dst-loading` branch, and new deliverables, including ENTSO-E UTC load for the two autumn nights. Code: `src/adequacy/data.py` (policy, exact-grid validation, audit), `src/adequacy/compare_dst.py` (new), `run.py` (`data_audit.csv`, refactored into `load_inputs` and `analyse`), and `checks.py` (flagged rows left out of the availability check). Tests: `tests/test_adequacy_dst.py` (new); `conftest.py`, `test_adequacy_data.py` and `test_adequacy_run.py` rewritten around full synthetic years in the ODRÉ layout. Docs: `docs/adequacy_model.md` (section 2.1; Test B text per D25). Committed on `fix/dst-loading` with owner authorisation; PR against `main`, not merged.
 - 2026-11-26 (Browser Claude, owner-authorised): **first real-data results recorded.** PR #10 merge (`a911009`) and its CI; the owner's clock-change comparison (2026-11-07) and full pipeline run (2026-11-26); Browser Claude's consistency checks of the outputs; preliminary scenario and Shapley results (December concentration, large interaction, magnitude not robust); outstanding limitations in section 10 (availability stand-ins, hydro proxies, open 2022 residual, peak-metric coincidence). Added D27 (priorities; Test B reporting; residual as a hypothetical perturbation in its own PR). Section 5 gains the exam-proof schedule and the Dec 2 ENTSO-E go/no-go, both Proposed. Exam dates resolved. Deliverables updated (capacities due Nov 29; PR #11 opened). No code changes in this commit.
+- 2026-11-27 (Browser Claude, owner-authorised): **schedule approved (D28); autumn-pass hypothesis withdrawn (D29).** Recorded the PR #11 and #12 merges, ENTSO-E API access and the owner's two autumn-night load downloads. Recorded the D29 reasoning: RTE's 2019 ENTSO-E data lack 00:00–01:00 UTC, consistent with the published timestamps; this is not a proof; the timestamps are kept and the question closed. Section 6 rebuilt to D28. ENTSO-E go/no-go reframed as feasibility. PR #13 recorded. Same commit: `src/adequacy/data.py` replaces the audit's `hypothesis` field with `pass_note`, recording the withdrawal and the remaining uncertainty for 2019 02:00 (no data change). `tests/test_adequacy_dst.py` and `docs/adequacy_model.md` section 2.1 were updated accordingly.

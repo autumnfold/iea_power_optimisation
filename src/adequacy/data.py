@@ -12,7 +12,8 @@ How the file is laid out (docs/adequacy_model.md, section 2.1; D26 in PROJECT_ST
   neighbouring genuine row, and ODRE stamps them (``date_heure``) at the 03:00 and 03:30
   instants, which already have their own rows.
 - Autumn: the repeated hour (02:00 and 02:30) is given once. ODRE stamps it as the second
-  (winter-time) pass. Which pass was actually measured is not documented.
+  (winter-time) pass. Which pass was actually measured is not documented, and it is
+  not established by the data either (D29).
 
 Clock-change policy (owner-approved, D26):
 1. rows whose Paris label does not exist are removed, because they are not measurements;
@@ -44,11 +45,13 @@ REQUIRED = ["consommation", "pompage", "ech_physiques", *GENERATION]
 LABEL_COLUMNS = ["date", "heure", "date_heure"]
 
 # Recorded evidence, not a rule: it changes no data and only annotates the audit report.
-PASS_HYPOTHESES = {
+PASS_NOTES = {
     ("2019-10-27", "02:00"): (
-        "Hypothesis, not established: series continuity suggests this row is the first "
-        "(summer-time) pass, 00:00 UTC, one hour before its ODRE timestamp. To be checked "
-        "against ENTSO-E actual total load in UTC."),
+        "A hypothesis that this row is the first (summer-time) pass was withdrawn on "
+        "2026-11-27 for lack of evidence (D29). RTE's hourly load on ENTSO-E has no value "
+        "for 00:00-01:00 UTC that night, consistent with the published timestamp, but this "
+        "does not prove which pass was measured. The timestamp is kept; the pass is not "
+        "established."),
 }
 
 
@@ -253,7 +256,7 @@ def _uncertain_entry(row: pd.Series) -> dict:
         "ts_utc": row["ts_utc"].isoformat(),
         "odre_timestamp": stamped,
         "note": "values and timestamp kept unchanged; which pass was measured is not documented",
-        "hypothesis": PASS_HYPOTHESES.get((row["date"], row["heure"])),
+        "pass_note": PASS_NOTES.get((row["date"], row["heure"])),
     }
 
 
