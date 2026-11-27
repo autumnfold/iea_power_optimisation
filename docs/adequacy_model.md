@@ -106,6 +106,8 @@ The input is a half-hourly series per technology (`inputs.load_availability`). I
 
 The ENTSO-E reconstruction itself (v6, section 6) is not built yet. Its cleaning steps depend on the fields of the actual download. The code above is its interface.
 
+The raw ENTSO-E files are downloaded, unchanged, by `python -m src.adequacy.entsoe_download` into the gitignored `data/entsoe/`, with a manifest per dataset and year. It covers load, installed capacity per type and per unit, and outages of generation and production units. The token is read only from `ENTSOE_API_KEY` and never printed or stored. The module docstring has the details.
+
 ### 4.2 Generation-based sensitivity cases (fallback)
 
 These are **alternative assumptions, not bounds** on available capacity (`inputs.generation_based_availability`):
