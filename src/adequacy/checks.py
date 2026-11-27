@@ -61,19 +61,42 @@ def hydro_capacity_check(capacity_mw: float, observed: pd.Series) -> dict:
             "ok": capacity_mw >= highest}
 
 
-def run_test_b(unmet_a1_mwh: float, configuration: str, pre_registered: bool) -> dict:
-    """Test B (v6 section 8.3): modelled 2019 unmet energy <= 36 GWh.
+OFFICIAL_TEST_B = ("A1 (modelled 2019), flexible pumped storage, reconstructed availability "
+                   "with monthly-mean aggregation (v6 section 8.3; D25)")
 
-    Pre-registered configuration: A1, ENTSO-E availability with monthly-mean aggregation,
-    flexible pumped storage. Any other configuration is reported, with
-    ``pre_registered=False``, as a sensitivity, not as the test.
-    """
+
+def official_test_b(unmet_a1_mwh: float) -> dict:
+    """Official Test B: modelled 2019 unmet energy <= 36 GWh, in the pre-registered
+    configuration only (OFFICIAL_TEST_B). Never called for any other configuration."""
     return {
-        "configuration": configuration,
-        "pre_registered_configuration": pre_registered,
+        "status": "evaluated",
+        "configuration": OFFICIAL_TEST_B,
         "unmet_gwh": unmet_a1_mwh / 1e3,
         "threshold_gwh": TEST_B_THRESHOLD_MWH / 1e3,
         "within_tolerance": unmet_a1_mwh <= TEST_B_THRESHOLD_MWH,
+    }
+
+
+def official_test_b_not_evaluated() -> dict:
+    """What ``test_b`` reports when reconstructed availability does not exist (D25)."""
+    return {
+        "status": "not evaluated",
+        "configuration": OFFICIAL_TEST_B,
+        "reason": "reconstructed availability is not available; no other configuration "
+                  "stands in for Test B (D25)",
+    }
+
+
+def fallback_diagnostic(unmet_a1_mwh: float, case: str, description: str) -> dict:
+    """Exploratory fallback diagnostic (D25): the case most favourable to domestic supply,
+    A1, flexible pumped storage. A sensitivity diagnostic, NOT a Test B result: the 36 GWh
+    value is shown for reference only, so there is deliberately no pass/fail field."""
+    return {
+        "kind": "exploratory sensitivity diagnostic (D25); not a Test B result",
+        "configuration": f"A1 (modelled 2019), flexible pumped storage, case {case}",
+        "case_description": description,
+        "unmet_gwh": unmet_a1_mwh / 1e3,
+        "reference_value_gwh": TEST_B_THRESHOLD_MWH / 1e3,
     }
 
 

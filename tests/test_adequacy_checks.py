@@ -7,8 +7,10 @@ from src.adequacy.checks import (
     availability_vs_generation,
     balance_residual,
     hydro_capacity_check,
+    fallback_diagnostic,
     import_comparison,
-    run_test_b,
+    official_test_b,
+    official_test_b_not_evaluated,
 )
 
 
@@ -39,12 +41,27 @@ def test_hydro_capacity_check():
     assert not hydro_capacity_check(5_000.0, pd.Series([5_001.0]))["ok"]
 
 
-def test_test_b_threshold_is_inclusive_and_flags_the_configuration():
-    assert run_test_b(36_000.0, "x", True)["within_tolerance"]
-    r = run_test_b(36_001.0, "nuc_max+fos_obsmax", False)
+def test_official_test_b_threshold_is_inclusive():
+    assert official_test_b(36_000.0)["within_tolerance"]
+    r = official_test_b(36_001.0)
     assert not r["within_tolerance"]
     assert r["unmet_gwh"] == pytest.approx(36.001)
-    assert r["pre_registered_configuration"] is False
+    assert r["status"] == "evaluated"
+    assert "reconstructed availability" in r["configuration"]
+
+
+def test_official_test_b_not_evaluated_has_no_result():
+    r = official_test_b_not_evaluated()
+    assert r["status"] == "not evaluated"
+    assert "unmet_gwh" not in r and "within_tolerance" not in r
+
+
+def test_fallback_diagnostic_is_labelled_and_has_no_pass_fail():
+    r = fallback_diagnostic(76.0, "nuc_max+fos_obsmax", "a description")
+    assert "not a Test B result" in r["kind"]
+    assert r["unmet_gwh"] == pytest.approx(0.076)
+    assert r["reference_value_gwh"] == pytest.approx(36.0)
+    assert "within_tolerance" not in r  # deliberately no pass/fail wording
 
 
 def test_import_comparison_on_a_three_half_hour_example():

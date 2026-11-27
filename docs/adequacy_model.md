@@ -216,7 +216,9 @@ Physical consistency (D20):
   - fossil: installed capacity once sourced, otherwise the sum of each technology's annual observed maximum.
 
   It is a sensitivity diagnostic, not a Test B result.
-- *Pending code change:* the output still lists every case under `test_b`, each with `pre_registered_configuration: false`. It should be restricted to the official configuration and this one diagnostic.
+- **In the output** (`checks.official_test_b`, `checks.fallback_diagnostic`):
+  - `test_b` holds only the official configuration. Without reconstructed availability, it reads `"status": "not evaluated"`, with no number, and no other case stands in for it.
+  - `exploratory_fallback_diagnostic` holds the one diagnostic: modelled 2019 unmet energy for the case above, with the 36 GWh value shown for reference only. It deliberately has no pass/fail field.
 
 ## 8. Comparison with observed net imports (`checks.import_comparison`)
 

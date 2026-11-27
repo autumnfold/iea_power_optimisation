@@ -38,7 +38,13 @@ def test_run_writes_consistent_outputs_and_the_audit(tmp_path, inputs):
     # Without sourced fossil capacity, only the two observed-maximum fossil cases exist.
     assert set(report["cases"]) == {"nuc_mean+fos_obsmax", "nuc_max+fos_obsmax"}
     assert "lower bound" in report["hydro_power_limits"]["lakes"][2019]["basis"]
-    assert all(not t["pre_registered_configuration"] for t in report["test_b"])
+    # No reconstructed availability: official Test B is not evaluated (D25), and the one
+    # exploratory diagnostic uses the observed fossil maximum (installed is not sourced).
+    assert report["test_b"]["status"] == "not evaluated"
+    assert "unmet_gwh" not in report["test_b"]
+    diagnostic = report["exploratory_fallback_diagnostic"]
+    assert "nuc_max+fos_obsmax" in diagnostic["configuration"]
+    assert "not a Test B result" in diagnostic["kind"]
     shapley = pd.read_csv(out / "shapley.csv")
     assert (shapley["phi_D"] + shapley["phi_A"]).to_numpy() == pytest.approx(
         shapley["total"].to_numpy(), abs=1e-3)
@@ -64,8 +70,15 @@ def test_run_with_reconstructed_availability_and_installed_fossil(tmp_path, inpu
         "--availability-2019", str(tmp_path / "avail_2019.csv"),
         "--availability-2022", str(tmp_path / "avail_2022.csv"), "--out", str(tmp_path / "r")]))
     assert len(report["cases"]) == 6  # 2 x 2 generation-based + 2 reconstructed aggregations
-    pre = [t for t in report["test_b"] if t["pre_registered_configuration"]]
-    assert [t["configuration"] for t in pre] == ["reconstructed+monthly_mean"]
+    # Official Test B is evaluated, and equals A1 of the pre-registered configuration.
+    official = report["cases"]["reconstructed+monthly_mean"]["results"]["flexible"]["scenarios"]["A1"]
+    assert report["test_b"]["status"] == "evaluated"
+    assert report["test_b"]["unmet_gwh"] == pytest.approx(official["unmet_gwh"])
+    # With installed fossil sourced, the diagnostic switches to the installed-fossil case.
+    diagnostic = report["exploratory_fallback_diagnostic"]
+    assert "nuc_max+fos_installed" in diagnostic["configuration"]
+    expected = report["cases"]["nuc_max+fos_installed"]["results"]["flexible"]["scenarios"]["A1"]
+    assert diagnostic["unmet_gwh"] == pytest.approx(expected["unmet_gwh"])
     check = report["checks"][2019]["availability_vs_generation"]
     assert check["nucleaire"]["violating_half_hours"] == 0
     assert check["excluded_dst_pass_uncertain"] == 2  # the autumn rows are not matched

@@ -30,7 +30,9 @@ from src.adequacy.checks import (
     balance_residual,
     hydro_capacity_check,
     import_comparison,
-    run_test_b,
+    fallback_diagnostic,
+    official_test_b,
+    official_test_b_not_evaluated,
 )
 from src.adequacy.data import DT_H, audit_rows, completeness, load_year
 from src.adequacy.inputs import (
@@ -56,6 +58,9 @@ from src.adequacy.scenarios import (
 
 YEARS = (2019, 2022)
 PRE_REGISTERED_TEST_B_CASE = "reconstructed+monthly_mean"  # v6 section 8.3
+# D25: the exploratory diagnostic uses installed fossil capacity when it is sourced,
+# otherwise the sum of each technology's observed maximum. Nuclear: monthly maximum.
+FALLBACK_DIAGNOSTIC_CASES = ("nuc_max+fos_installed", "nuc_max+fos_obsmax")
 NUCLEAR_STATS = {"mean": "monthly mean", "max": "monthly maximum"}
 
 
@@ -130,7 +135,8 @@ def analyse(years: dict, capacities: dict, aligned: dict | None):
     ps_cap = {y: v["mw"] for y, v in ps.items()}
 
     report: dict = {"data": {}, "hydro_power_limits": {"lakes": lake, "pumped_storage": ps},
-                    "checks": {}, "cases": {}, "test_b": [], "import_comparison": {},
+                    "checks": {}, "cases": {}, "test_b": official_test_b_not_evaluated(),
+                    "exploratory_fallback_diagnostic": None, "import_comparison": {},
                     "frozen_fossil": {}, "half_hourly_availability": {}}
     for y, df in years.items():
         budgets = monthly_budgets(demand[y])
@@ -189,8 +195,14 @@ def analyse(years: dict, capacities: dict, aligned: dict | None):
                                      "metric": metric, **shapley_dict(shares[key], scale)})
 
             if ps_mode == "flexible":
-                report["test_b"].append(run_test_b(
-                    results["A1"].unmet_mwh, case, case == PRE_REGISTERED_TEST_B_CASE))
+                # Official Test B only in the pre-registered configuration (D25).
+                if case == PRE_REGISTERED_TEST_B_CASE:
+                    report["test_b"] = official_test_b(results["A1"].unmet_mwh)
+                # The one exploratory diagnostic: the first of FALLBACK_DIAGNOSTIC_CASES
+                # that exists in this run (installed fossil preferred).
+                if case == next(c for c in FALLBACK_DIAGNOSTIC_CASES if c in cases):
+                    report["exploratory_fallback_diagnostic"] = fallback_diagnostic(
+                        results["A1"].unmet_mwh, case, spec["description"])
             if ps_mode == "baseline":
                 report["import_comparison"][case] = {
                     "A1_vs_2019": import_comparison(results["A1"].shortfall, years[2019]),
@@ -257,5 +269,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 if __name__ == "__main__":
     report = run(parse_args())
-    print(json.dumps({"test_b": report["test_b"], "sensitivity_range": report["sensitivity_range"]},
+    print(json.dumps({"test_b": report["test_b"],
+                      "exploratory_fallback_diagnostic": report["exploratory_fallback_diagnostic"],
+                      "sensitivity_range": report["sensitivity_range"]},
                      indent=2, default=str))
