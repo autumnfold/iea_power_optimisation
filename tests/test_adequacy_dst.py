@@ -86,16 +86,18 @@ def test_autumn_rows_are_kept_unchanged_flagged_and_the_gap_listed(tmp_path, odr
         values(frame, "2019-10-27", "02:00"), abs=1e-3)
     entries = {e["heure"]: e for e in audit["retained_pass_uncertain"]}
     assert entries["02:00"]["odre_timestamp"] == "second (winter-time) pass"
-    assert "not established" in entries["02:00"]["hypothesis"]  # recorded, not applied
-    assert entries["02:30"]["hypothesis"] is None
+    # D29: the first-pass hypothesis is withdrawn; the note keeps the uncertainty on record.
+    assert "withdrawn" in entries["02:00"]["pass_note"]
+    assert "not established" in entries["02:00"]["pass_note"]
+    assert entries["02:30"]["pass_note"] is None
     missing = [e["paris_time"] for e in audit["missing_half_hours"]]
     assert missing == ["2019-10-27T02:00:00+02:00", "2019-10-27T02:30:00+02:00"]
     assert (df["month"] == 10).sum() == 1488
 
 
-def test_2022_autumn_rows_carry_no_hypothesis(tmp_path, odre_frame, write_csv):
+def test_2022_autumn_rows_carry_no_pass_note(tmp_path, odre_frame, write_csv):
     _, audit = write_and_load(tmp_path, write_csv, odre_frame(2022, seed=6), 2022)
-    assert [e["hypothesis"] for e in audit["retained_pass_uncertain"]] == [None, None]
+    assert [e["pass_note"] for e in audit["retained_pass_uncertain"]] == [None, None]
 
 
 def test_both_autumn_passes_present_needs_no_flag(tmp_path, odre_frame, write_csv):
